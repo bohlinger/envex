@@ -2,7 +2,7 @@
 # Ewans and Jonathan (2013) and Jonathan, Ewans, Randell (2013).
 
 library(extRemes)
-# library(extraDistr)
+library(extraDistr)
 
 make_marginal_models_manual <- function(mexdata, mqu=.9, time_units=NULL,
                                         number_of_years=NULL){
@@ -580,14 +580,10 @@ compute_HT2004_parameter_bstrp <- function(dfin,
                                              m_params = margs_gpd_orig)
 
         print("fit occ model")
-        #margs_occ <- fit_marginal_models_occ(dfin = data_sub,
-        #                                     list_var = list_var,
-        #                                     model_fml = model_fml_occ,
-        #                                     nr_of_years = nr_of_years)
-        margs_occ <- fit_marginal_models_occ_v2(dfin = data_sub,
-                                                list_var = list_var,
-                                                model_fml = model_fml_occ,
-                                                nr_of_years = nr_of_years)
+        margs_occ <- fit_marginal_models_occ(dfin = data_sub,
+                                             list_var = list_var,
+                                             model_fml = model_fml_occ,
+                                             nr_of_years = nr_of_years)
 
         probs <- compute_probs(margs_thr, margs_gpd, dfin = dfin[[i]],
                                list_var = list_var, thr_str = 'thr')[['probs']]
@@ -744,15 +740,11 @@ fit_margs_bstrp <- function(dfin,
                                          m_params = margs_gpd_orig)
 
     print("fit occ model")
-    #margs_occ <- fit_marginal_models_occ(dfin = data_sub,
-    #                                     list_var = list_var,
-    #                                     model_fml = model_fml_occ,
-    #                                     nr_of_years = nr_of_years)
-    margs_occ <- fit_marginal_models_occ_v2(dfin = data_sub,
-                                            list_var = list_var,
-                                            model_fml = model_fml_occ,
-                                            nr_of_years = nr_of_years,
-                                            nquad = nquad)
+    margs_occ <- fit_marginal_models_occ(dfin = data_sub,
+                                         list_var = list_var,
+                                         model_fml = model_fml_occ,
+                                         nr_of_years = nr_of_years,
+                                         nquad = nquad)
 
     probs <- compute_probs(margs_thr, margs_gpd, dfin = dfin[[i]],
                            list_var = list_var, thr_str = 'thr')[['probs']]
@@ -808,14 +800,10 @@ fit_models_bstrp <- function(dfin,
                                              m_params = margs_gpd_orig)
 
         print("fit occ model")
-        #margs_occ <- fit_marginal_models_occ(dfin = data_sub,
-        #                                     list_var = list_var,
-        #                                     model_fml = model_fml_occ,
-        #                                     nr_of_years = nr_of_years)
-        margs_occ <- fit_marginal_models_occ_v2(dfin = data_sub,
-                                                list_var = list_var,
-                                                model_fml = model_fml_occ,
-                                                nr_of_years = nr_of_years)
+        margs_occ <- fit_marginal_models_occ(dfin = data_sub,
+                                             list_var = list_var,
+                                             model_fml = model_fml_occ,
+                                             nr_of_years = nr_of_years)
 
         margs <- NULL
         margs[['thr']] <- margs_thr
