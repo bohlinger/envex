@@ -1,13 +1,11 @@
 # Heffernan and Tawn conditional extremes model from 2004 as used in e.g.
 # Ewans and Jonathan (2013) and Jonathan, Ewans, Randell (2013).
 
-# HT2004 using texmex
-library(texmex)
 library(extRemes)
-library(extraDistr)
+# library(extraDistr)
 
 make_marginal_models_manual <- function(mexdata, mqu=.9, time_units=NULL,
-                                        number_of_years=NULL, verbose=FALSE){
+                                        number_of_years=NULL){
   #' @export
   margs <- NULL
   if (is.null(time_units)){
@@ -32,9 +30,9 @@ make_marginal_models_manual <- function(mexdata, mqu=.9, time_units=NULL,
   return(margs)
 }
 
-make_marginal_models <- function(mexdata, mqu=.9, penalty="none",
-                                 approach="texmex", time_units=NULL,
-                                 number_of_years=NULL, verbose=FALSE){
+make_marginal_models <- function(mexdata, mqu=.9,
+                                 time_units=NULL,
+                                 number_of_years=NULL){
   #' @description
   #' Function to create marginal models of considered joint variables.
   #' Input should be i.i.d. peaks.
@@ -44,22 +42,19 @@ make_marginal_models <- function(mexdata, mqu=.9, penalty="none",
   #' @return margs object of marginal models
   #'
   #' @examples
-  #' margs <- migpd(mexdata, mqu=.9, penalty = "none")
+  #'
   #'
   #' @export
 
-  if (approach != "texmex"){
-    margs <- NULL
-    margs <- make_marginal_models_manual(mexdata=mexdata, mqu=mqu,
-                                         number_of_years=number_of_years,
-                                         time_units=time_units)
-  } else {
-    margs <- migpd(mexdata, mqu=mqu, penalty = penalty)
-  }
+  margs <- NULL
+  margs <- make_marginal_models_manual(mexdata=mexdata, mqu=mqu,
+                                       number_of_years=number_of_years,
+                                       time_units=time_units)
   return(margs)
 }
 
-transform_to_laplace <- function(dfin, margs, names_in=NULL, maxd=NULL, which.covariate=NULL){
+transform_to_laplace <- function(dfin, margs, names_in=NULL,
+                                 maxd=NULL, which.covariate=NULL){
   #' @export
 
   lp_margins <- NULL
@@ -70,7 +65,6 @@ transform_to_laplace <- function(dfin, margs, names_in=NULL, maxd=NULL, which.co
     natural_scale <- dfin[[n]]
     Fn_ecdf <- ecdf(natural_scale)
     probs_ecdf <- Fn_ecdf(natural_scale[natural_scale<=margs[[n]]$threshold])
-    #probs_gpd <- pevd(natural_scale,
     probs_gpd <- pevd(natural_scale[natural_scale>margs[[n]]$threshold],
                       scale = exp(margs[[n]]$results$par[1]),
                       shape = margs[[n]]$results$par[2],
@@ -79,7 +73,6 @@ transform_to_laplace <- function(dfin, margs, names_in=NULL, maxd=NULL, which.co
                       lower.tail = TRUE)
     # combine probs
     probs <- c(probs_ecdf,probs_gpd)
-    #probs <- probs_gpd
 
     # transform to Laplace
     if (is.null(maxd)){
@@ -112,7 +105,6 @@ transform_to_laplace_ndim_preds <- function(dfin, maxd=NULL,
                     lower.tail = TRUE)
   # combine probs
   probs <- c(probs_gpd)
-  #probs <- probs_gpd
 
   # transform to Laplace
   lp_margins <- NULL
@@ -126,7 +118,8 @@ transform_to_laplace_ndim_preds <- function(dfin, maxd=NULL,
 runif_func <-function(n, min=1, max=10) sample(min:max, n, replace=T)
 
 fit_dependence_model_ndim_manual <- function(margs, which.target,
-                                             which.covariate, dqu, trace=0){
+                                             which.covariate, dqu,
+                                             trace=0){
   #' @export
   #'
 
@@ -300,14 +293,10 @@ HT2004_mse <- function(params, x, y) {
   return(res)
 }
 
-make_dependence_model <- function(margs, which="hs", dqu=.9, approach="texmex"){
+make_dependence_model <- function(margs, which="hs", dqu=.9){
   #' @export
-  if (approach != "texmex"){
-    maxd <- NULL
-    maxd <- make_dependence_model_manual(margs, which=which, dqu=dqu)
-  } else {
-    maxd <- mexDependence(margs, which=which, dqu=dqu)
-  }
+  maxd <- NULL
+  maxd <- make_dependence_model_manual(margs, which=which, dqu=dqu)
   return(maxd)
 }
 
