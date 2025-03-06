@@ -234,7 +234,8 @@ fit_marginal_models_thr <- function(dfin, thr, model_fml, list_var=NULL, m_param
 }
 
 
-fit_marginal_models_gpd <- function(dfin, model_fml, list_var=NULL, m_params=NULL){
+fit_marginal_models_gpd <- function(dfin, model_fml, list_var=NULL,
+                                    m_params=NULL, trace=0){
   #' @export
   #'
   margs <- NULL
@@ -244,10 +245,10 @@ fit_marginal_models_gpd <- function(dfin, model_fml, list_var=NULL, m_params=NUL
   for (n in list_var){
     print(c("fit gpd model for",n))
     if (is.null(m_params)){
-      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd")
+      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd", trace=trace)
     } else {
       margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd",
-                          sp=m_params[[n]]$sp)
+                          sp=m_params[[n]]$sp, trace=trace)
     }
   }
   return (margs)

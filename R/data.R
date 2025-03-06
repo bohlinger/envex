@@ -34,3 +34,49 @@
 #' @examples
 #' data(ekofisk_wave_surge)
 "ekofisk_wave_surge"
+
+#' Contains storm peaks from the ekofisk_wave_surge dataset
+#'
+#' @format A data frame with 9 variables and 3006 rows:
+#'  \describe{
+#'    \item{time}{"character"}
+#'    \item{hs}{significant wave height combined (m0 based)}
+#'    \item{Pdir}{peak direction}
+#'    \item{doy}{day of year}
+#'    \item{U10}{wind speed at 10m height}
+#'    \item{s}{steepness based on tm01}
+#'    \item{zeta}{storm surge, tides removed}
+#'    \item{storm_idx}{storm labels}
+#'    \item{dt}{dt <- as.POSIXct(ekofisk$time, format="%Y-%m-%d %H:%M:%S", tz="UTC")}
+#'    }
+#' @source {NORA3 wave hindcast data available under:
+#'          https://thredds.met.no/thredds/catalog/windsurfer/mywavewam3km_files/catalog.html.
+#'          https://thredds.met.no/thredds/projects/stormrisk.html
+#'          Time series nearest- neighbour interpolated to location of Ekofisk oil and gas field.}
+#' @examples
+#' data(storm_peaks_example)
+"storm_peaks_example"
+
+#' Contains labeled storms from the ekofisk_wave_surge dataset
+#'
+#' @format A data frame with 11 variables and 191496 rows:
+#'  \describe{
+#'    \item{time}{"character"}
+#'    \item{hs}{significant wave height combined (m0 based)}
+#'    \item{Pdir}{peak direction}
+#'    \item{doy}{day of year}
+#'    \item{U10}{wind speed at 10m height}
+#'    \item{s}{steepness based on tm01}
+#'    \item{zeta}{storm surge, tides removed}
+#'    \item{storm_idx}{storm labels}
+#'    \item{dt}{dt <- as.POSIXct(ekofisk$time, format="%Y-%m-%d %H:%M:%S", tz="UTC")}
+#'    \item{exc}{excess}
+#'    \item{thr}{threshold}
+#'    }
+#' @source {NORA3 wave hindcast data available under:
+#'          https://thredds.met.no/thredds/catalog/windsurfer/mywavewam3km_files/catalog.html.
+#'          https://thredds.met.no/thredds/projects/stormrisk.html
+#'          Time series nearest- neighbour interpolated to location of Ekofisk oil and gas field.}
+#' @examples
+#' data(storms_labeled_example)
+"storms_labeled_example"

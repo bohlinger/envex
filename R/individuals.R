@@ -176,7 +176,7 @@ triangular_storm_traj <- function(HsPeak, tm2_const=10, multiplicator=8,
 
   # triangular storm model
   # model conditional on HsPeak with duration D = multiplicator*HsPeak with unit hours
-  # mulitplicator is 8 according literature
+  # multiplicator is 8 according literature
   # Tm2 is constant with 10s
 
   D_storm <- closest_even(HsPeak*multiplicator)
@@ -209,19 +209,19 @@ compute_steepness <- function(Hm0, Tm01){
   return(s)
 }
 
-compute_tm1_or_tm2_from_steepness <- function(hs,s,g=9.81){
+compute_T_from_steepness <- function(hs,s,g=9.81){
   #' @param hs Significant wave height
   #' @param s Steepness
   #'
-  #' @return Tm Mean period
+  #' @return T Period used for steepness
   #'
   #' @export
 
   # Computes mean T from Hs and wave steepness
   # Could be Tm01/Tm02 depending on the definition used for steepness
 
-  Tm <- sqrt((hs/g*2*pi/s))
-  return(Tm)
+  T <- sqrt((hs/g*2*pi/s))
+  return(T)
 }
 
 find_idxs_closest_storm_peaks <- function(simPeakHs, simPeakTm,
@@ -229,8 +229,8 @@ find_idxs_closest_storm_peaks <- function(simPeakHs, simPeakTm,
                                           sidx=1, eidx=10){
   #' @param simPeakHs simulated peak of Hs
   #' @param simPeakTm simulated peak of Tm
-  #' @param histPeaksHs historic peakss of Hs to match
-  #' @param histPeaksTm historic peakss of Tm to match
+  #' @param histPeaksHs historic peaks of Hs to match
+  #' @param histPeaksTm historic peaks of Tm to match
   #' @param sidx start idx
   #' @param eidx end idx
   #'

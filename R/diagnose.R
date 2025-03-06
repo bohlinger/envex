@@ -77,7 +77,6 @@ diagnose_margs_occ <- function(marg, dfin, nbins, covarlst, nr_of_years, cslims=
     cslims <- c(0,max(dfcounts$counts))
   }
 
-  #par(mfrow = c(1, 2))
   p1 <- ggplot(dfobs, aes(dfobs[[covarlst[1]]], dfobs[[covarlst[2]]])) +
     geom_bin2d(bins = nbins) +  # bins controls the number of bins
     scale_fill_gradient(low = "white", high = "blue", limits = cslims) +

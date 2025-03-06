@@ -4,55 +4,6 @@
 library(extRemes)
 library(extraDistr)
 
-make_marginal_models_manual <- function(mexdata, mqu=.9, time_units=NULL,
-                                        number_of_years=NULL){
-  #' @export
-  margs <- NULL
-  if (is.null(time_units)){
-    time_units <- sprintf("%.4f/year", length(mexdata$hs)/number_of_years)
-  } else {time_units <- time_units}
-  print("time_units are:")
-  print(time_units)
-  if (length(mqu)==length(colnames(mexdata))){
-    print("use all mqus in order")
-    print("not yet implemented")
-  } else {
-    print("only use 1mqu (i.e. mqu[1])")
-    for (v in colnames(mexdata)){
-      margs[[v]] <-fevd(mexdata[[v]], data = mexdata,
-                        type = "GP",
-                        threshold = quantile(mexdata[[v]], mqu[1]),
-                        time.units = time_units,
-                        use.phi = TRUE)
-      margs[[v]][["mqu"]] <- mqu[1]
-    }
-  }
-  return(margs)
-}
-
-make_marginal_models <- function(mexdata, mqu=.9,
-                                 time_units=NULL,
-                                 number_of_years=NULL){
-  #' @description
-  #' Function to create marginal models of considered joint variables.
-  #' Input should be i.i.d. peaks.
-  #' @param mexdata data of joint variables
-  #' @param mqu threshold for marginal models as quantile. Could be an array.
-  #'
-  #' @return margs object of marginal models
-  #'
-  #' @examples
-  #'
-  #'
-  #' @export
-
-  margs <- NULL
-  margs <- make_marginal_models_manual(mexdata=mexdata, mqu=mqu,
-                                       number_of_years=number_of_years,
-                                       time_units=time_units)
-  return(margs)
-}
-
 transform_to_laplace <- function(dfin, margs, names_in=NULL,
                                  maxd=NULL, which.covariate=NULL){
   #' @export
@@ -528,7 +479,10 @@ fit_HT2004 <- function(lp_margs, thr){
       Y_fit <- Y_fit_tmp[X_fit_tmp>quantile(X_fit_tmp,thr)]
       X_fit <- X_fit_tmp[X_fit_tmp>quantile(X_fit_tmp,thr)]
       # upper limit on a and b above 1 to allow for a chance to hit 1 assuming noisy data
-      o <- optim(c(a=.5, b=.5, m=1, s=1), x=X_fit, y=Y_fit, HT2004_mse, method='L-BFGS-B', lower = c(0,-100,-100,0.001), upper = c(1.2,1.2,100,100))
+      o <- optim(c(a=.5, b=.5, m=1, s=1), x=X_fit, y=Y_fit,
+                 HT2004_mse, method='L-BFGS-B',
+                 lower = c(0,-100,-100,0.001),
+                 upper = c(1.2,1.2,100,100))
       maxd[[names(lp_margs)[i]]][[n]][['params']] <- o
       maxd[[names(lp_margs)[i]]][[n]][['Z']] <- (Y_fit-o$par[1]*X_fit)/X_fit**o$par[2]
       maxd[[names(lp_margs)[i]]][[n]][['X_fit']] <- X_fit
@@ -844,7 +798,6 @@ fit_maxds_bstrp <- function(dfin, margs,
 
   maxds <- NULL
   for (b in 1:nbstrp){
-    ### Fitting marginals ###
     print(c("bootstrap nr:",b))
     lp_margs <- compute_lp_margs(models_margs[[b]]$probs)
     maxd <- fit_HT2004(lp_margs, thr = t)

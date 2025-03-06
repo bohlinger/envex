@@ -49,10 +49,6 @@ filter_dir_sector <- function(df, dir_str, start_dir, sector_width){
   return(df_dir_sector)
 }
 
-filter_sims_for_season <- function(doys, start_doy, season_width){
-  return(doys)
-}
-
 filter_sims_for_dir_sector <- function(dirs, start_dir, sector_width){
   #'
   #' filters directions to fiven sector
