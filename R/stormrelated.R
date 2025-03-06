@@ -277,8 +277,6 @@ get_list_of_close_storms <- function(dfin, var_str, time_str, min_nr_days){
   #' @return df_pots a data frame of declustered POTs
   #'
   #' @examples
-  #' df_pots <- decluster_exceedances(df_data, var_str = "hs",
-  #'                                  time_str = "time", min_nr_days = 1)
   #'
   #' @export
   #'
@@ -298,13 +296,10 @@ get_list_of_close_storms <- function(dfin, var_str, time_str, min_nr_days){
   start_idx <- c(1,end_idx[1:length(end_idx)-1]+1)
 
   storm_idx_list = NULL
-  #newdf <- dfin
   for (x in 1:length(blck_idx)) {
     # create new df of storm peaks with new indices
-    #newdf$storm_idx[start_idx[x]: end_idx[x]] <- max(dfin[['storm_idx']][start_idx[x]: end_idx[x]])
     storm_idx_list[[x]] <- dfin[['storm_idx']][start_idx[x]: end_idx[x]]
   }
-  #return(list(newdf, storm_idx_list))
   return(storm_idx_list)
 }
 

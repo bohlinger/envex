@@ -4,8 +4,8 @@ library(evgam)
 library(extRemes)
 #library(lubridate)
 library(dplyr)
-#library(rlang)
-#library(MASS)
+library(rlang)
+library(MASS)
 
 produce_storm_occurrences <- function(nr_of_events, RP,
                                       nr_of_years,
@@ -226,7 +226,8 @@ fit_marginal_models_thr <- function(dfin, thr, model_fml, list_var=NULL, m_param
     if (is.null(m_params)){
       margs[[n]] <- evgam(model_fml[[n]], dfin, family="ald", ald.args=list(tau=thr))
     } else {
-      margs[[n]] <- evgam(model_fml[[n]], dfin, family="ald", ald.args=list(tau=thr), sp=m_params[[n]]$sp)
+      margs[[n]] <- evgam(model_fml[[n]], dfin, family="ald",
+                          ald.args=list(tau=thr), sp=m_params[[n]]$sp)
     }
   }
   return (margs)
@@ -245,7 +246,8 @@ fit_marginal_models_gpd <- function(dfin, model_fml, list_var=NULL, m_params=NUL
     if (is.null(m_params)){
       margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd")
     } else {
-      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd", sp=m_params[[n]]$sp)
+      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd",
+                          sp=m_params[[n]]$sp)
     }
   }
   return (margs)

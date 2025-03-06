@@ -1,4 +1,5 @@
-# library(patchwork)
+library(patchwork)
+library(ggplot2)
 
 diagnose_margs_gpd <- function(margs, dfin, var_str="hs", exc_str='exc'){
   #' @export

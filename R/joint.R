@@ -700,7 +700,7 @@ fit_margs_bstrp <- function(dfin,
                             extr_thr, nr_of_years, thr_str='thr', list_var=NULL,
                             margs_thr_orig=NULL,
                             margs_gpd_orig=NULL,
-                            n.bstrp=NULL,
+                            nbstrp=NULL,
                             nquad=40){
   #' @export
   #'
@@ -711,13 +711,13 @@ fit_margs_bstrp <- function(dfin,
   }
   print(c('Considered variables:', list_var))
 
-  if (is.null(n.bstrp)){
-    n.bstrp <- length(dfin)
+  if (is.null(nbstrp)){
+    nbstrp <- length(dfin)
   }
-  print(c('number of bootstraps is:', n.bstrp))
+  print(c('number of bootstraps is:', nbstrp))
 
   margs <- NULL
-  for (i in 1:n.bstrp){
+  for (i in 1:nbstrp){
 
     ### Fitting marginals ###
 
@@ -842,12 +842,12 @@ fit_models_bstrp <- function(dfin,
 }
 
 fit_maxds_bstrp <- function(dfin, margs,
-                            maxd_thr, n.bstrp=NULL){
+                            maxd_thr, nbstrp=NULL){
   #' @export
   #'
 
-  if (is.null(n.bstrp)){
-    n.bstrp <- length(dfin)
+  if (is.null(nbstrp)){
+    nbstrp <- length(dfin)
   }
 
   if (length(maxd_thr)>1){
@@ -855,7 +855,7 @@ fit_maxds_bstrp <- function(dfin, margs,
   } else {t <- maxd_thr}
 
   maxds <- NULL
-  for (b in 1:n.bstrp){
+  for (b in 1:nbstrp){
     ### Fitting marginals ###
     print(c("bootstrap nr:",b))
     lp_margs <- compute_lp_margs(models_margs[[b]]$probs)
@@ -883,7 +883,7 @@ predict_maxd <- function(maxd, varstr_X, varstr_Y, nsim){
 }
 
 predict_from_HT2004_models <- function(margs, maxds, nr_of_years, RP,
-                                       var_lst, n.bstrp, nsims.mc=1,
+                                       var_lst, nbstrp, nmc=1,
                                        preds=NULL, condition=NULL){
   #' @export
 
@@ -897,12 +897,12 @@ predict_from_HT2004_models <- function(margs, maxds, nr_of_years, RP,
   if (is.null(preds)){
     # predict values from non-stationary marginal model if not supplied
     preds <- predict_margs(margs, nr_of_years, RP,
-                           nsims.mc = nsims.mc,
+                           nmc = nmc,
                            var_lst = var_lst,
-                           n.bstrp = n.bstrp,
+                           nbstrp = nbstrp,
                            condition = condition)
   }
-  for (b in 1:n.bstrp){
+  for (b in 1:nbstrp){
     lp_Y_lst <- NULL
     lp_X_lst <- NULL
     X_lst <- NULL
@@ -934,19 +934,19 @@ predict_from_HT2004_models <- function(margs, maxds, nr_of_years, RP,
 convert_HT2004_preds_to_original_space <- function(margs, maxds,
                                                    maxd_preds, marg_preds,
                                                    var_lst = NULL,
-                                                   n.bstrp = NULL){
+                                                   nbstrp = NULL){
   #' @export
 
   if (is.null(var_lst)){
     var_lst <- names(maxds[[1]])
   }
 
-  if (is.null(n.bstrp)){
-    n.bstrp <- length(marg_preds)
+  if (is.null(nbstrp)){
+    nbstrp <- length(marg_preds)
   }
 
   Y_bstrp <- NULL
-  for (b in 1:n.bstrp){
+  for (b in 1:nbstrp){
     Y_lst <- NULL
     X_lst <- NULL
     for (n in 1:length(var_lst)){
@@ -967,7 +967,7 @@ convert_HT2004_preds_to_original_space <- function(margs, maxds,
   return(Y_bstrp)
 }
 
-predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, n.bstrp=NULL){
+predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, nbstrp=NULL){
   #' @export
   #'
 
@@ -975,8 +975,8 @@ predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, n.
     var_lst <- names(models$maxds)
   }
 
-  if (is.null(n.bstrp)){
-    n.bstrp <- length(margs)
+  if (is.null(nbstrp)){
+    nbstrp <- length(margs)
   }
 
   max_vals <- NULL
@@ -984,7 +984,7 @@ predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, n.
   max_lp_Y <- NULL
   accepted <- NULL
   rejected <- NULL
-  for (b in 1:n.bstrp){ # number of bootstraps
+  for (b in 1:nbstrp){ # number of bootstraps
     for (n in 1:length(var_lst)){
 
       # predict from PP: produce storms occurrences at correct rate
@@ -1063,17 +1063,17 @@ predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, n.
   return(list('max_vals'=max_vals, 'max_lp_Y'=max_lp_Y, 'max_lp_X'=max_lp_X))
 }
 
-predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nsims.mc = 1,
+predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
                          condition = NULL){
   #' @export
   #'
 
-  df_max <- data.frame(matrix(ncol = 5, nrow = nsims.mc))
+  df_max <- data.frame(matrix(ncol = 5, nrow = nmc))
   colnames(df_max) <- c("maxval", "scale", "shape", "thr", "prob")
 
   predictor_names <- margs$thr[[varstr]]$predictor.names
   df_covs <- data.frame(matrix(ncol = length(predictor_names),
-                               nrow = nsims.mc))
+                               nrow = nmc))
   colnames(df_covs) <- predictor_names
 
   # predict from PP: produce storms occurrences at correct rate
@@ -1099,7 +1099,7 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nsims.mc = 1,
   scales <- gpd_param_sims$scale
   shapes <- gpd_param_sims$shape
 
-  for (i in 1:nsims.mc){
+  for (i in 1:nmc){
     gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
                      threshold = thr, type="GP")
     max_idx <- which(gpd_sims==max(gpd_sims))
@@ -1133,8 +1133,8 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nsims.mc = 1,
   return(df_out)
 }
 
-predict_margs <- function(margs, nr_of_years, RP, nsims.mc = 1,
-                          var_lst=NULL, n.bstrp=NULL, condition=NULL){
+predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
+                          var_lst=NULL, nbstrp=NULL, condition=NULL){
   #' @export
   #'
 
@@ -1142,28 +1142,27 @@ predict_margs <- function(margs, nr_of_years, RP, nsims.mc = 1,
     var_lst <- names(margs[[1]]$thr)
   }
 
-  if (is.null(n.bstrp)){
-    n.bstrp <- length(margs)
+  if (is.null(nbstrp)){
+    nbstrp <- length(margs)
   }
 
   preds_lst <- NULL
-  for (b in 1:n.bstrp){ # number of bootstraps
+  for (b in 1:nbstrp){ # number of bootstraps
     print(c("number of boostraps (predict_margs):", b))
     preds_tmp_lst <- NULL
     for (n in 1:length(var_lst)){
       preds <- predict_marg(margs[[b]], nr_of_years, RP,
-                            varstr = var_lst[n], nsims.mc = nsims.mc,
+                            varstr = var_lst[n], nmc = nmc,
                             condition = condition)
       preds_tmp_lst[[var_lst[n]]] <- preds
     }
     preds_lst[[b]] <- preds_tmp_lst
   }
-
   return(preds_lst)
 }
 
 predict_margs_bstrp <- function(margs, nr_of_years,
-                                RP, var_lst=NULL, n.bstrp=NULL,
+                                RP, var_lst=NULL, nbstrp=NULL,
                                 condition=NULL){
   #' @export
   #'
@@ -1172,11 +1171,11 @@ predict_margs_bstrp <- function(margs, nr_of_years,
     var_lst <- names(models$maxds)
   }
 
-  if (is.null(n.bstrp)){
-    n.bstrp <- length(margs)
+  if (is.null(nbstrp)){
+    nbstrp <- length(margs)
   }
 
-  df_max <- data.frame(matrix(ncol = 5, nrow = n.bstrp))
+  df_max <- data.frame(matrix(ncol = 5, nrow = nbstrp))
   colnames(df_max) <- c("maxval", "scale", "shape", "thr", "prob")
   df_max_vals <- NULL
   for (n in var_lst){
@@ -1184,7 +1183,7 @@ predict_margs_bstrp <- function(margs, nr_of_years,
   }
 
   df_covs <- data.frame(matrix(ncol = length(margs[[1]]$thr[[1]]$predictor.names),
-                               nrow = n.bstrp))
+                               nrow = nbstrp))
   colnames(df_covs) <- margs[[1]]$thr[[1]]$predictor.names
   df_max_covs <- NULL
   for (n in var_lst){
@@ -1192,7 +1191,7 @@ predict_margs_bstrp <- function(margs, nr_of_years,
   }
 
   max_vals <- NULL
-  for (b in 1:n.bstrp){ # number of bootstraps
+  for (b in 1:nbstrp){ # number of bootstraps
     for (n in 1:length(var_lst)){
 
       # predict from PP: produce storms occurrences at correct rate
@@ -1247,7 +1246,7 @@ predict_margs_bstrp <- function(margs, nr_of_years,
 }
 
 retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
-                                      varstr_X, varstr_Y, n.bstrp=NULL){
+                                      varstr_X, varstr_Y, nbstrp=NULL){
   #' @export
 
   # color the valid ones and add
@@ -1255,8 +1254,8 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
   # preds_HT_lp <- preds_HT
   # preds_margs <- preds_margs_lst
 
-  if (is.null(n.bstrp)){
-    n.bstrp <- length(preds_margs)
+  if (is.null(nbstrp)){
+    nbstrp <- length(preds_margs)
   }
 
   X_lp_valid <- NULL
@@ -1279,7 +1278,7 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
     Y_invalid_b <- NULL
     X_valid_b <- NULL
     X_invalid_b <- NULL
-    for (b in 1:n.bstrp){
+    for (b in 1:nbstrp){
       X_lp_valid_tmp <- NULL
       Y_lp_valid_tmp <- NULL
       X_lp_invalid_tmp <- NULL
