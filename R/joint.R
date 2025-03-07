@@ -1242,7 +1242,7 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
         } else{
           X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
           Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
-          Y_invalid_tmp[[i]] <- HT_sims[[b]][[varstr_X]][[n]][i]
+          Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
           X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
         }
       }

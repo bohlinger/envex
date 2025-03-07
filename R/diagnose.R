@@ -96,7 +96,7 @@ diagnose_margs_occ <- function(marg, dfin, nbins, covarlst, nr_of_years, cslims=
 diagnose_maxds <- function(models_maxds_lst, X_var_str, Y_var_str, ulim=1.3, llim=-1.3){
   #' @export
 
-  maxd_params_bstrp <- unfold_maxd_params_bstrp_v2(models_maxds_thr, X_var_str, Y_var_str)
+  maxd_params_bstrp <- unfold_maxd_params_bstrp_v2(models_maxds_lst, X_var_str, Y_var_str)
 
   par(mfrow = c(2, 2))
   plot(maxd_thr, maxd_params_bstrp$alpha_cntr, type = "l",ylim=c(llim,ulim), main = "", xlab = "", ylab = "", xaxt = 'n', yaxt = 'n')
@@ -246,30 +246,6 @@ diagnose_maxds_fitted <- function(maxd, X_str, Y_str, nsim){
   abline(coef = c(0,1), col="orange")
 }
 
-diagnose_maxds_preds <- function(maxd, X_str, Y_str, lp_X, lp_Y){
-  #' @export
-
-  X_all <- maxd[[X_str]][[Y_str]]$X_all
-  Y_all <- maxd[[X_str]][[Y_str]]$Y_all
-
-  # plot simulations from HT2004
-  xlim <- c(min(c(X_all,lp_X,lp_Y)),max(c(X_all,lp_X,lp_Y)))
-  ylim <- xlim
-  plot(X_all, Y_all,
-       pch=20, col="black", xlim=xlim, ylim=ylim, cex=.5,
-       main = "", xlab = "X on Laplace", ylab = "Y on Laplace")
-  par(new=TRUE)
-  plot(lp_X, lp_Y,
-       pch=20, col="orange", xlim=xlim, ylim=ylim, cex=.5,
-       main = "", xlab = "", ylab = "", xaxt = 'n', yaxt = 'n')
-  abline(h = 0, col = "gray", lwd = .5, lty = 1)
-  abline(v = 0, col = "gray", lwd = .5, lty = 1)
-  abline(v = quantile(X_all, maxd[[X_str]][[Y_str]]$thr),
-         col = "orange", lwd = .5, lty = 1)
-
-  abline(coef = c(0,1), col="orange")
-}
-
 diagnose_margs_preds_density <- function(margs_preds, varstr,
                                          n.bstr=NULL, bw=NULL,
                                          xlim=NULL, ylim=NULL,
@@ -342,4 +318,31 @@ diagnose_margs_preds_density <- function(margs_preds, varstr,
   print("summary maxes:")
   print(summary(unlist(maxvals)))
   return(list('maxvals'=maxvals, 'densities'=densities))
+}
+
+display_joint_densities <- function(preds_maxds,
+                                    preds_maxds_LP,
+                                    preds_margs_lst,
+                                    X_str, Y_str){
+  # use function to retrieve valids
+  valids <- retrieve_valid_HT_samples(preds_maxds,
+                                      preds_maxds_LP,
+                                      preds_margs_lst,
+                                      X_str, c(Y_str))
+
+  library(hexbin)
+  library(RColorBrewer)
+  rf <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
+  r <- rf(32)
+  # Create hexbin object and plot
+  dfin <- data.frame(unlist(valids$X_valid[[Y_str]]), unlist(valids$Y_valid[[Y_str]]))
+  colnames(dfin) <- c(X_str, Y_str)
+  h <- hexbin(dfin)
+  counts <- h@count
+  hexbinplot(U10~hs, data=dfin,
+             xbins=50, colramp=rf,
+             mincnt=(min(counts)+1),
+             maxcnt = max(counts),
+             trans=log, inv=exp)
+  # ylim=c(0,2.5), xlim=c(10,24)
 }
