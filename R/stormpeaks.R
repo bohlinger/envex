@@ -245,9 +245,9 @@ fit_marginal_models_gpd <- function(dfin, model_fml, list_var=NULL,
   for (n in list_var){
     print(c("fit gpd model for",n))
     if (is.null(m_params)){
-      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd", trace=trace)
+      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd2", trace=trace)
     } else {
-      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd",
+      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd2",
                           sp=m_params[[n]]$sp, trace=trace)
     }
   }
@@ -302,13 +302,19 @@ peak_picking <- function(dfin, lst_vars, thr_model_fml,
                          decorrelation_time_scale=2){
   #' @export
 
-  print('apply threshold model over all data')
-  m_ald <- evgam(thr_model_fml, dfin, family="ald",
-                 ald.args=list(tau=thr))
-  q_tmp <- fitted(m_ald)$location
+  if (is.null(thr_model_fml)){
+    print('apply constant threshold to all data')
+    dfin[[thr_str]] <- array(1, length(dfin[[var_str]]))*thr
+    dfin[[exc_str]] <- dfin[[var_str]] - dfin[[thr_str]]
+  } else {
+    print('apply threshold model to all data')
+    m_ald <- evgam(thr_model_fml, dfin, family="ald",
+                   ald.args=list(tau=thr))
+    q_tmp <- fitted(m_ald)$location
 
-  dfin[[thr_str]] <- fitted(m_ald)$location
-  dfin[[exc_str]] <- dfin[[var_str]] - dfin[[thr_str]]
+    dfin[[thr_str]] <- fitted(m_ald)$location
+    dfin[[exc_str]] <- dfin[[var_str]] - dfin[[thr_str]]
+  }
 
   print('label storms')
   dfin_labeled <- label_storms_variable_thr(dfin, exc_str = exc_str)

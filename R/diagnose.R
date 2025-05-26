@@ -323,7 +323,8 @@ diagnose_margs_preds_density <- function(margs_preds, varstr,
 display_joint_densities <- function(preds_maxds,
                                     preds_maxds_LP,
                                     preds_margs_lst,
-                                    X_str, Y_str){
+                                    X_str, Y_str,
+                                    Xmax=NULL,Ymax=NULL){
   # use function to retrieve valids
   valids <- retrieve_valid_HT_samples(preds_maxds,
                                       preds_maxds_LP,
@@ -339,10 +340,22 @@ display_joint_densities <- function(preds_maxds,
   colnames(dfin) <- c(X_str, Y_str)
   h <- hexbin(dfin)
   counts <- h@count
-  hexbinplot(U10~hs, data=dfin,
+  formula <- as.formula(paste(Y_str, "~", X_str))
+  # Define a custom panel function to add a vertical line
+  custom_panel <- function(x, y, Xmax,Ymax, ...) {
+    panel.hexbinplot(x, y, ...)
+    panel.abline(v = Xmax, col = "gray", lwd = 1, lty = 1)
+    panel.abline(h = Ymax, col = "gray", lwd = 1, lty = 1)
+  }
+  hexbinplot(formula, data=dfin,
              xbins=50, colramp=rf,
              mincnt=(min(counts)+1),
              maxcnt = max(counts),
-             trans=log, inv=exp)
+             trans=log, inv=exp,
+             panel = custom_panel,
+             Xmax = Xmax, Ymax=Ymax)
   # ylim=c(0,2.5), xlim=c(10,24)
+  #if (is.numeric(Xmax)){
+    #panel.abline(v = Xmax, col = "gray", lwd = .5, lty = 1)
+  #}
 }

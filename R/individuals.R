@@ -192,6 +192,80 @@ triangular_storm_traj <- function(HsPeak, tm2_const=10, multiplicator=8,
   return(list(relevant_Hs, relevant_tm2))
 }
 
+power_storm_traj <- function(Peak, B=NULL, lam=NULL, xPeak=NULL) {
+  #'
+  #' @return list Relevant Hs
+  #'
+  #' @export
+
+  # lam = 1 <- triangular
+  # lam > 1 round
+  # lam < 1 approaching delta fct
+
+  A <- Peak
+
+  if (is.null(B)){
+    B <- 150*A**(-.25)
+    #B <- 50*A**(-.25)
+  }
+
+  if (is.null(lam)){
+    lam <- 1
+  }
+
+  Bhalf <- as.integer(B/2)
+  t <- seq(-Bhalf,Bhalf)
+
+  # Hs <- A*(1-(2*abs(t-t0)/B)**lam)
+  y <- A*(1-(2*abs(t)/B)**lam)
+  t <- t + Bhalf
+  if (is.null(xPeak)){
+    x <- t
+  } else {
+    x <- t - Bhalf + xPeak*24
+    x2 <- t
+  }
+  y <- y[x>0]
+  t <- t[x>0]
+  x <- x[x>0]
+
+  # returns hourly ts of one storm
+  return(list('y'=y,'x'=x, 't'=t))
+}
+
+power_storm_trajs <- function(Peaks, B=NULL, lam=1, xPeaks=NULL, slen=NULL){
+  # establish final matrix containing all single storm ts
+  dimensions <- c(length(Peaks), slen)
+  dummy_data <- runif(prod(dimensions))*NA
+  ss_array <- array(dummy_data, dim = dimensions)
+  for (i in 1:length(Peaks)) {
+    ss <- power_storm_traj(Peaks[i], B=B, lam=lam, xPeak=xPeaks[i])
+    ss_array[i,ss$x[1]:ss$x[length(ss$x)]] <- ss$y
+  }
+  return(ss_array)
+}
+
+power_storm_traj_composite_max <- function(Peaks, B=NULL, lam=1, xPeaks=NULL, slen=NULL){
+  #' @export
+  #'
+  dimensions_tmp <- c(length(Peaks), slen)
+  dummy_data_tmp <- runif(prod(dimensions_tmp))*NA
+  ss_array_tmp <- array(dummy_data_tmp, dim = dimensions_tmp)
+
+  print(dim(ss_array_tmp))
+
+  ss1 <- power_storm_traj(Peaks[1], B=B, lam=lam, xPeak=xPeaks[1])
+
+  for (i in 2:length(Peaks)) {
+    #print(c('nr peaks:',i))
+    ss <- power_storm_traj(Peaks[i], B=B, lam=lam, xPeak=xPeaks[i])
+    ss_array_tmp[i,(ss$x[1]:(ss$x[length(ss$x)]))] <- ss$y
+
+    #ss_array_tmp[1,] <- apply(ss_array_tmp, 2, max, na.rm=TRUE)
+  }
+  return(ss_array_tmp)
+}
+
 compute_steepness <- function(Hm0, Tm01){
   #' @param Hm0 Significant wave height
   #' @param Tm01 Mean period
