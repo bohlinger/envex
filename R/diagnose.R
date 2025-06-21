@@ -333,6 +333,7 @@ display_joint_densities <- function(preds_maxds,
 
   library(hexbin)
   library(RColorBrewer)
+  library(lattice)
   rf <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
   r <- rf(32)
   # Create hexbin object and plot
@@ -353,7 +354,8 @@ display_joint_densities <- function(preds_maxds,
              maxcnt = max(counts),
              trans=log, inv=exp,
              panel = custom_panel,
-             Xmax = Xmax, Ymax=Ymax)
+             Xmax = Xmax, Ymax=Ymax,
+             ylim=c(6,12), xlim=c(5,10))
   # ylim=c(0,2.5), xlim=c(10,24)
   #if (is.numeric(Xmax)){
     #panel.abline(v = Xmax, col = "gray", lwd = .5, lty = 1)

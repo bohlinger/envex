@@ -935,7 +935,9 @@ predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, nb
       nr_of_events <- length(tmp[tmp>0])
       rm(tmp)
 
-      df_storm_cov <- produce_storm_occurrences(nr_of_events, RP, nr_of_years, margs[[b]]$occ[[var_lst[n]]])
+      df_storm_cov <- produce_storm_occurrences(nr_of_events,
+                                                RP, nr_of_years,
+                                                margs[[b]]$occ[[var_lst[n]]])
 
       # predict from ALD
       print("predict threshold")
@@ -1005,6 +1007,7 @@ predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, nb
 }
 
 predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
+                         covarstr_lst, covar_mins, covar_maxes,
                          condition = NULL){
   #' @export
   #'
@@ -1026,45 +1029,49 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
 
   df_storm_cov <- produce_storm_occurrences(nr_of_events, RP, nr_of_years,
                                             margs$occ[[varstr]],
+                                            covarstr_lst,
+                                            covar_mins, covar_maxes,
                                             condition = condition)
 
-  # predict from ALD
-  print("predict threshold")
-  thr <- predict(margs$thr[[varstr]], newdata = df_storm_cov,
-                 type = "response")$location
+  if (dim(df_storm_cov)[1]>0){
+    # predict from ALD
+    print("predict threshold")
+    thr <- predict(margs$thr[[varstr]], newdata = df_storm_cov,
+                   type = "response")$location
 
-  # predict from GPD
-  print("predict exceedences")
-  gpd_param_sims <- predict(margs$gpd[[varstr]],
-                            newdata = df_storm_cov, type= "response")
-  scales <- gpd_param_sims$scale
-  shapes <- gpd_param_sims$shape
+    # predict from GPD
+    print("predict exceedences")
+    gpd_param_sims <- predict(margs$gpd[[varstr]],
+                              newdata = df_storm_cov, type= "response")
+    scales <- gpd_param_sims$scale
+    shapes <- gpd_param_sims$shape
 
-  for (i in 1:nmc){
-    gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
-                     threshold = thr, type="GP")
-    max_idx <- which(gpd_sims==max(gpd_sims))
+    for (i in 1:nmc){
+      gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
+                       threshold = thr, type="GP")
+      max_idx <- which(gpd_sims==max(gpd_sims))
 
-    # Save maximum
-    max_val <- gpd_sims[max_idx]
-    max_scale <- scales[max_idx]
-    max_shape <- shapes[max_idx]
-    thr_max <- thr[max_idx]
-    df_pred_cov <- df_storm_cov[max_idx,]
+      # Save maximum
+      max_val <- gpd_sims[max_idx]
+      max_scale <- scales[max_idx]
+      max_shape <- shapes[max_idx]
+      thr_max <- thr[max_idx]
+      df_pred_cov <- df_storm_cov[max_idx,]
 
-    gpd_prob <- pevd(max_val, scale = max_scale, shape = max_shape,
-                     threshold = thr_max, type = "GP", lower.tail = TRUE)
+      gpd_prob <- pevd(max_val, scale = max_scale, shape = max_shape,
+                       threshold = thr_max, type = "GP", lower.tail = TRUE)
 
-    # store in output field
-    df_max$maxval[i] <- max_val
-    df_max$scale[i] <- max_scale
-    df_max$shape[i] <- max_shape
-    df_max$thr[i] <- thr_max
-    df_max$prob[i] <- gpd_prob
+      # store in output field
+      df_max$maxval[i] <- max_val
+      df_max$scale[i] <- max_scale
+      df_max$shape[i] <- max_shape
+      df_max$thr[i] <- thr_max
+      df_max$prob[i] <- gpd_prob
 
-    # store covariates
-    for (n in predictor_names){
-      df_covs[[n]][[i]] <- df_pred_cov[[n]]
+      # store covariates
+      for (n in predictor_names){
+        df_covs[[n]][[i]] <- df_pred_cov[[n]]
+      }
     }
   }
 
@@ -1075,7 +1082,9 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
 }
 
 predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
-                          var_lst=NULL, nbstrp=NULL, condition=NULL){
+                          var_lst=NULL, nbstrp=NULL,
+                          covarstr_lst, covar_mins, covar_maxes,
+                          condition=NULL){
   #' @export
   #'
 
@@ -1094,6 +1103,8 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
     for (n in 1:length(var_lst)){
       preds <- predict_marg(margs[[b]], nr_of_years, RP,
                             varstr = var_lst[n], nmc = nmc,
+                            covarstr_lst,
+                            covar_mins, covar_maxes,
                             condition = condition)
       preds_tmp_lst[[var_lst[n]]] <- preds
     }
@@ -1103,8 +1114,7 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
 }
 
 predict_margs_bstrp <- function(margs, nr_of_years,
-                                RP, var_lst=NULL, nbstrp=NULL,
-                                condition=NULL){
+                                RP, var_lst=NULL, nbstrp=NULL){
   #' @export
   #'
 
@@ -1144,7 +1154,8 @@ predict_margs_bstrp <- function(margs, nr_of_years,
 
       df_storm_cov <- produce_storm_occurrences(nr_of_events, RP, nr_of_years,
                                                 margs[[b]]$occ[[var_lst[n]]],
-                                                condition = condition)
+                                                covarstr_lst,
+                                                covar_mins, covar_maxes)
 
       # predict from ALD
       print("predict threshold")

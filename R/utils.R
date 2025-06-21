@@ -152,7 +152,7 @@ transform_var_to_rank <- function(vals, max_val){
   return(vals_trans)
 }
 
-unfold_counts <- function(dfin){
+unfold_counts <- function(dfin, covarstr_lst){
   #' Unfolds dataframe with covariates for binned count data
   #'
   #' @param df A dataframe.
@@ -164,21 +164,19 @@ unfold_counts <- function(dfin){
   #'
   #' @export
 
-  cov1 <- list()
-  cov2 <- list()
-
+  covars <- list()
   # possibly outsource for loop in apply function and import here
-  for (i in 1:dim(dfin)[1]){
-    #print(dfin[i,2])
-    #print(dfin[i,1])
-    cov1 <- list(cov1, rep(dfin[i,2], dfin[i,1]))
-    cov2 <- list(cov2, rep(dfin[i,3], dfin[i,1]))
+  for (s in covarstr_lst){
+    covar <- list()
+    for (i in 1:dim(dfin)[1]){
+      covar[[i]] <- rep(dfin[i,2], dfin[i,1])
+    }
+    covars[[s]] <- unlist(covar)
   }
-
-  cov1 <- unlist(cov1)
-  cov2 <- unlist(cov2)
-
-  return(data.frame(cov1=cov1, cov2=cov2))
+  covars <- as.data.frame(covars)
+  colnames(covars) <- covarstr_lst
+  covars[['counts']] <- array(1,dim(covars)[1])
+  return(covars)
 }
 
 make_data_frame <- function(varstr_lst, var_lst){

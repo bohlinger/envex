@@ -7,7 +7,7 @@ library(dplyr)
 library(rlang)
 library(MASS)
 
-produce_storm_occurrences <- function(nr_of_events, RP,
+produce_storm_occurrences_v0 <- function(nr_of_events, RP,
                                       nr_of_years,
                                       model_nr_of_events,
                                       condition=NULL){
@@ -58,6 +58,8 @@ produce_storm_occurrences <- function(nr_of_events, RP,
 
   # filter according to covariate constraints
   if (!is.null(condition)){
+    print("filtering for condition:")
+    print(c("  ", condition))
     condition_expr <- parse_expr(condition)
     dfcounts <- dfcounts %>% filter(!!condition_expr)
     nr_of_events_sim <- dim(dfcounts)[1]
@@ -66,6 +68,76 @@ produce_storm_occurrences <- function(nr_of_events, RP,
   print(c('nr_of_events_sim:', dim(dfcounts)[1]))
   return(dfcounts)
 }
+
+produce_storm_occurrences <- function(nr_of_events, RP,
+                                      nr_of_years,
+                                      model_nr_of_events,
+                                      covarstr_lst,
+                                      covar_mins, covar_maxes,
+                                      condition=NULL){
+  #' Produce storm occurrences by producing the appropriate number
+  #' of coinciding covariates, i.e. direction and day of year.
+  #'
+  #' @param nr_of_events nr of events in dataset (integer)
+  #' @param RP return period (RP) (integer)
+  #' @param nr_of_years nr of years the dataset covers (integer)
+  #' @param model_nr_of_events ppgam model object for occurrences given the covariates "doy" and "Pdir"
+  #' @return df dataset of unfolded set of covariates ready to be used for GPD or other model
+  #'
+  #' @examples
+  #' storms <- produce_storm_occurrences(nr_of_events, RP, model_nr_of_events)
+  #'
+  #' @export
+
+  # simulate storm peaks from poisson
+  print(c('nr_of_events:', nr_of_events))
+  lambda <- nr_of_events*RP
+  nr_of_events_sim <- rpois(1, lambda=lambda)
+
+  newdf <- as.data.frame(array(NA,dim=c(nr_of_events_sim,(length(covarstr_lst)+1))))
+  colnames(newdf) <- c('counts', covarstr_lst)
+
+  for (i in 1:length(covarstr_lst)){
+    covar_samples <- runif(nr_of_events_sim, min = covar_mins[i], max = covar_maxes[i])
+    newdf[[covarstr_lst[i]]] <- covar_samples
+  }
+
+  predcounts <- predict(model_nr_of_events, newdata = newdf, type = 'response')
+
+  simcounts <- rpois(length(predcounts), lambda=predcounts)
+  dftmp <- newdf
+  dftmp[['counts']] <- simcounts
+
+  print(c("simulate total counts of", sum(simcounts)))
+
+  print(c("max predicted counts per covar value",max(predcounts)))
+  print(c("max simulated counts per covar value",max(simcounts)))
+
+  dfcounts_tmp <- subset(dftmp, counts>0)
+  dfcounts_tmp_1 <- subset(dfcounts_tmp, counts==1)
+  dfcounts_tmp_l1 <- subset(dfcounts_tmp, counts>1)
+
+  if (dim(dfcounts_tmp_l1)[1]>0){
+    dfcounts_1 <- unfold_counts(dfcounts_tmp_l1, covarstr_lst)
+    dfcounts <- rbind(dfcounts_1,dfcounts_tmp_1)
+  } else {
+    dfcounts <- dfcounts_tmp_1[,covarstr_lst]
+  }
+  rm(dftmp)
+
+  # filter according to covariate constraints
+  if (!is.null(condition)){
+    print("filtering for condition:")
+    print(c("  ", condition))
+    condition_expr <- parse_expr(condition)
+    dfcounts <- dfcounts %>% filter(!!condition_expr)
+    nr_of_events_sim <- dim(dfcounts)[1]
+  }
+
+  print(c('nr_of_events_sim:', dim(dfcounts)[1]))
+  return(dfcounts)
+}
+
 
 get_ann_max <- function(df_all, list_of_years, var_str, year_str){
   #' @param df_all dataframe to use with all info included
