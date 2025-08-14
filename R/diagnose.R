@@ -62,14 +62,18 @@ diagnose_margs_gpd <- function(margs, dfin, var_str="hs", exc_str='exc'){
   abline(a = 0, b = 1, col = "gray", lwd = 2)
 }
 
-diagnose_margs_occ <- function(marg, dfin, nbins, covarlst, nr_of_years, cslims=NULL){
+diagnose_margs_occ <- function(marg, dfin, nbins, covarlst, nr_of_years,
+                               covar_mins, covar_maxes, cslims=NULL, condition=NULL){
   #' @export
 
   nr_of_events <- dim(dfin)[1]
   dfobs <- dfin[,covarlst]
   dfcounts <- produce_storm_occurrences(nr_of_events,
                                         nr_of_years, nr_of_years,
-                                        marg)
+                                        marg,
+                                        covarlst,
+                                        covar_mins, covar_maxes,
+                                        condition = condition)
 
   print(c('max predicted counts:', max(dfcounts$counts)))
 
@@ -249,7 +253,8 @@ diagnose_maxds_fitted <- function(maxd, X_str, Y_str, nsim){
 diagnose_margs_preds_density <- function(margs_preds, varstr,
                                          n.bstr=NULL, bw=NULL,
                                          xlim=NULL, ylim=NULL,
-                                         qlow=.05, qhigh=.95, qmed=.5){
+                                         qlow=.05, qhigh=.95, qmed=.5,
+                                         xlab=NULL){
   #' @export
 
   # if is.null(n.bstr) plot all combined
@@ -269,7 +274,7 @@ diagnose_margs_preds_density <- function(margs_preds, varstr,
 
   y_max <- array(dim=length(maxvals))
   for (b in 1:length(y_max)){
-    y_max[b] <- max(density(maxvals[[b]])$y)
+    y_max[b] <- max(density(maxvals[[b]],bw=bw,n=512)$y)
   }
 
   if (is.null(ylim)){
@@ -288,9 +293,12 @@ diagnose_margs_preds_density <- function(margs_preds, varstr,
          xlab = '', ylab = '', xaxt='n', yaxt='n', main = "")
     par(new=TRUE)
   }
+  if (is.null(xlab)){
+    xlab <- varstr
+  }
   plot(density(unlist(maxvals), bw=bw, n=512,
                from=xlim[1], to=xlim[2]),
-       xlim=xlim, ylim=ylim, main="", xlab=varstr)
+       xlim=xlim, ylim=ylim, main="", xlab=xlab)
 
   # plot density with uncertainty quantiles
   densities <- NULL
@@ -306,14 +314,18 @@ diagnose_margs_preds_density <- function(margs_preds, varstr,
   qhigh_ts <- apply(df_dens,1,quantile,qhigh)
   qmed_ts <- apply(df_dens,1,quantile,qmed)
 
-  plot(densities$x[[1]], qlow_ts,col='grey', xlim=xlim, ylim=ylim, main="",
-       lty=1, lwd=.5, type='l', xlab = "", ylab = "", xaxt = 'n', yaxt = 'n')
+  plot(densities$x[[1]], qlow_ts,col='blue', xlim=xlim, ylim=ylim, main="",
+       lty=3, lwd=.5, type='l', xlab = "", ylab = "", xaxt = 'n', yaxt = 'n')
   par(new=TRUE)
-  plot(densities$x[[1]], qhigh_ts,col='grey',xlim=xlim, ylim=ylim, main="",
-       lty=1, lwd=.5, type='l', xlab = "", ylab = "", xaxt = 'n', yaxt = 'n',)
+  plot(densities$x[[1]], qhigh_ts,col='blue',xlim=xlim, ylim=ylim, main="",
+       lty=3, lwd=.5, type='l', xlab = "", ylab = "", xaxt = 'n', yaxt = 'n',)
   par(new=TRUE)
   plot(densities$x[[1]], qmed_ts,xlim=xlim, ylim=ylim, main="",
-       xlab=varstr, ylab="Density", lty=1, lwd=.5, type='l')
+       xlab=xlab, ylab="Density", lty=3, lwd=.5, type='l', col="blue")
+  par(new=TRUE)
+  plot(density(unlist(maxvals), bw=bw, n=512,
+               from=xlim[1], to=xlim[2]),
+       xlim=xlim, ylim=ylim, main="", xlab = "", ylab = "", xaxt = 'n', yaxt = 'n')
 
   print("summary maxes:")
   print(summary(unlist(maxvals)))
@@ -354,8 +366,8 @@ display_joint_densities <- function(preds_maxds,
              maxcnt = max(counts),
              trans=log, inv=exp,
              panel = custom_panel,
-             Xmax = Xmax, Ymax=Ymax,
-             ylim=c(6,12), xlim=c(5,10))
+             Xmax = Xmax, Ymax=Ymax)
+             #ylim=c(6,12), xlim=c(5,10))
   # ylim=c(0,2.5), xlim=c(10,24)
   #if (is.numeric(Xmax)){
     #panel.abline(v = Xmax, col = "gray", lwd = .5, lty = 1)

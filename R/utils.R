@@ -85,7 +85,7 @@ var_to_zscore <- function(df, var_str){
   tmp_mean <- mean(vals)
   tmp_std <- sd(vals)
   vals_zscore <- (vals - tmp_mean)/tmp_std
-  var_zscore_str <- paste(var_str, "_", "trans", sep = "")
+  var_zscore_str <- paste(var_str, "_", "zscore", sep = "")
   df[[var_zscore_str]] <- vals_zscore
   return(df)
 }

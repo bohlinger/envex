@@ -1198,13 +1198,26 @@ predict_margs_bstrp <- function(margs, nr_of_years,
 }
 
 retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
-                                      varstr_X, varstr_Y, nbstrp=NULL){
+                                      varstr_X, varstr_Y, nbstrp=NULL,
+                                      region="default", models_maxds=NULL){
   #' @export
 
   # color the valid ones and add
   # preds_HT <- HT_sims
   # preds_HT_lp <- preds_HT
   # preds_margs <- preds_margs_lst
+
+  # region: relates to region in LP space where different HT2004 models are
+  #         valid/appropriate. X is always assumed to be the conditioning
+  #         variable and Y the conditioned variable. By default only the
+  #         valid/appropriate region is output, this can be extended to
+  #         including the entire rectangle where X greater than a threshold.
+  #         This is the case when not filtering for valids at all, kewyord "all".
+  #         Additionally this can be reduced to only the triangle where one
+  #         model is above threshold for both X and Y. To cover this entire
+  #         square where X and Y both are extreme this script needs to be run
+  #         twice swapping X and Y and consolidating the results, the keyword
+  #         for this is "both".
 
   if (is.null(nbstrp)){
     nbstrp <- length(preds_margs)
@@ -1220,62 +1233,198 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
   X_valid <- NULL
   X_invalid <- NULL
 
-  for (n in varstr_Y){
-    X_lp_valid_b <- NULL
-    Y_lp_valid_b <- NULL
-    X_lp_invalid_b <- NULL
-    Y_lp_invalid_b <- NULL
+  if (region=="default"){
+    print("Greater than threshold on X, only valids")
+    for (n in varstr_Y){
+      X_lp_valid_b <- NULL
+      Y_lp_valid_b <- NULL
+      X_lp_invalid_b <- NULL
+      Y_lp_invalid_b <- NULL
 
-    Y_valid_b <- NULL
-    Y_invalid_b <- NULL
-    X_valid_b <- NULL
-    X_invalid_b <- NULL
-    for (b in 1:nbstrp){
-      X_lp_valid_tmp <- NULL
-      Y_lp_valid_tmp <- NULL
-      X_lp_invalid_tmp <- NULL
-      Y_lp_invalid_tmp <- NULL
+      Y_valid_b <- NULL
+      Y_invalid_b <- NULL
+      X_valid_b <- NULL
+      X_invalid_b <- NULL
+      for (b in 1:nbstrp){
+        X_lp_valid_tmp <- NULL
+        Y_lp_valid_tmp <- NULL
+        X_lp_invalid_tmp <- NULL
+        Y_lp_invalid_tmp <- NULL
 
-      Y_valid_tmp <- NULL
-      X_valid_tmp <- NULL
-      Y_invalid_tmp <- NULL
-      X_invalid_tmp <- NULL
-      for (i in 1:length(preds_HT_lp$lp_X[[b]][[varstr_X]])){
-        Y_maxes <- NULL
-        for (m in length(varstr_Y)){
-          Y_maxes[[m]] <- max(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]][i])
+        Y_valid_tmp <- NULL
+        X_valid_tmp <- NULL
+        Y_invalid_tmp <- NULL
+        X_invalid_tmp <- NULL
+        for (i in 1:length(preds_HT_lp$lp_X[[b]][[varstr_X]])){
+          Y_maxes <- NULL
+          for (m in length(varstr_Y)){
+            Y_maxes[[m]] <- max(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]][i])
+          }
+          if (preds_HT_lp$lp_X[[b]][[varstr_X]][i]>max(unlist(Y_maxes))){
+            X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+          } else{
+            X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+          }
         }
-        if (preds_HT_lp$lp_X[[b]][[varstr_X]][i]>max(unlist(Y_maxes))){
-          X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
-          Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
-          Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
-          X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
-        } else{
-          X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
-          Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
-          Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
-          X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
-        }
+        X_lp_valid_b[[b]] <- X_lp_valid_tmp
+        Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
+        X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
+        Y_lp_invalid_b[[b]] <- Y_lp_invalid_tmp
+
+        Y_valid_b[[b]] <- Y_valid_tmp
+        Y_invalid_b[[b]] <- Y_invalid_tmp
+        X_valid_b[[b]] <- X_valid_tmp
+        X_invalid_b[[b]] <- X_invalid_tmp
       }
-      X_lp_valid_b[[b]] <- X_lp_valid_tmp
-      Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
-      X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
-      Y_lp_invalid_b[[b]] <- Y_lp_invalid_tmp
+      X_lp_valid[[n]] <- X_lp_valid_b
+      Y_lp_valid[[n]] <- Y_lp_valid_b
+      X_lp_invalid[[n]] <- X_lp_invalid_b
+      Y_lp_invalid[[n]] <- Y_lp_invalid_b
 
-      Y_valid_b[[b]] <- Y_valid_tmp
-      Y_invalid_b[[b]] <- Y_invalid_tmp
-      X_valid_b[[b]] <- X_valid_tmp
-      X_invalid_b[[b]] <- X_invalid_tmp
+      Y_valid[[n]] <- Y_valid_b
+      Y_invalid[[n]] <- Y_invalid_b
+      X_valid[[n]] <- X_valid_b
+      X_invalid[[n]] <- X_invalid_b
     }
-    X_lp_valid[[n]] <- X_lp_valid_b
-    Y_lp_valid[[n]] <- Y_lp_valid_b
-    X_lp_invalid[[n]] <- X_lp_invalid_b
-    Y_lp_invalid[[n]] <- Y_lp_invalid_b
-
-    Y_valid[[n]] <- Y_valid_b
-    Y_invalid[[n]] <- Y_invalid_b
-    X_valid[[n]] <- X_valid_b
-    X_invalid[[n]] <- X_invalid_b
   }
+
+  if (region=="all"){
+    print("Greater than threshold on X")
+    for (n in varstr_Y){
+      X_lp_valid_b <- NULL
+      Y_lp_valid_b <- NULL
+      X_lp_invalid_b <- NULL
+      Y_lp_invalid_b <- NULL
+
+      Y_valid_b <- NULL
+      Y_invalid_b <- NULL
+      X_valid_b <- NULL
+      X_invalid_b <- NULL
+      for (b in 1:nbstrp){
+        X_lp_valid_tmp <- NULL
+        Y_lp_valid_tmp <- NULL
+        X_lp_invalid_tmp <- NULL
+        Y_lp_invalid_tmp <- NULL
+
+        Y_valid_tmp <- NULL
+        X_valid_tmp <- NULL
+        Y_invalid_tmp <- NULL
+        X_invalid_tmp <- NULL
+        for (i in 1:length(preds_HT_lp$lp_X[[b]][[varstr_X]])){
+          #Y_maxes <- NULL
+          #for (m in length(varstr_Y)){
+          #  Y_maxes[[m]] <- max(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]][i])
+          #}
+          thr <- models_maxds[[b]][[varstr_X]][[n]]$thr
+          thr_val <- quantile(models_maxds[[b]][[varstr_X]][[n]]$X_fit,thr)
+          if (preds_HT_lp$lp_X[[b]][[varstr_X]][i]>thr_val){
+            X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+          } else{
+            X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+          }
+        }
+        X_lp_valid_b[[b]] <- X_lp_valid_tmp
+        Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
+        X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
+        Y_lp_invalid_b[[b]] <- Y_lp_invalid_tmp
+
+        Y_valid_b[[b]] <- Y_valid_tmp
+        Y_invalid_b[[b]] <- Y_invalid_tmp
+        X_valid_b[[b]] <- X_valid_tmp
+        X_invalid_b[[b]] <- X_invalid_tmp
+      }
+      X_lp_valid[[n]] <- X_lp_valid_b
+      Y_lp_valid[[n]] <- Y_lp_valid_b
+      X_lp_invalid[[n]] <- X_lp_invalid_b
+      Y_lp_invalid[[n]] <- Y_lp_invalid_b
+
+      Y_valid[[n]] <- Y_valid_b
+      Y_invalid[[n]] <- Y_invalid_b
+      X_valid[[n]] <- X_valid_b
+      X_invalid[[n]] <- X_invalid_b
+    }
+  }
+
+  if (region=="both"){
+    print("Greater than threshold on X & greater than threshold on Y, only valids")
+    for (n in varstr_Y){
+      X_lp_valid_b <- NULL
+      Y_lp_valid_b <- NULL
+      X_lp_invalid_b <- NULL
+      Y_lp_invalid_b <- NULL
+
+      Y_valid_b <- NULL
+      Y_invalid_b <- NULL
+      X_valid_b <- NULL
+      X_invalid_b <- NULL
+      for (b in 1:nbstrp){
+        X_lp_valid_tmp <- NULL
+        Y_lp_valid_tmp <- NULL
+        X_lp_invalid_tmp <- NULL
+        Y_lp_invalid_tmp <- NULL
+
+        Y_valid_tmp <- NULL
+        X_valid_tmp <- NULL
+        Y_invalid_tmp <- NULL
+        X_invalid_tmp <- NULL
+        for (i in 1:length(preds_HT_lp$lp_X[[b]][[varstr_X]])){
+          Y_maxes <- NULL
+          for (m in length(varstr_Y)){
+            Y_maxes[[m]] <- max(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]][i])
+          }
+          thr_x <- models_maxds[[b]][[varstr_X]][[n]]$thr
+          thr_val_x <- quantile(models_maxds[[b]][[varstr_X]][[n]]$X_fit,thr_x)
+          thr_y <- models_maxds[[b]][[n]][[varstr_X]]$thr
+          thr_val_y <- quantile(models_maxds[[b]][[n]][[varstr_X]]$X_fit,thr_y)
+          if (preds_HT_lp$lp_X[[b]][[varstr_X]][i]>max(unlist(Y_maxes)) &
+              preds_HT_lp$lp_X[[b]][[varstr_X]][i]>thr_val_x &
+              preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]>thr_val_y){
+              #preds_HT_lp$lp_Y[[b]][[n]][[varstr_X]][i]>thr_val_y){
+              #preds_HT_lp$lp_Y[[b]][[varstr_X]][[varstr_Y]][i]>thr_val_y){
+            X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+          } else{
+            X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+          }
+        }
+        X_lp_valid_b[[b]] <- X_lp_valid_tmp
+        Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
+        X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
+        Y_lp_invalid_b[[b]] <- Y_lp_invalid_tmp
+
+        Y_valid_b[[b]] <- Y_valid_tmp
+        Y_invalid_b[[b]] <- Y_invalid_tmp
+        X_valid_b[[b]] <- X_valid_tmp
+        X_invalid_b[[b]] <- X_invalid_tmp
+      }
+      X_lp_valid[[n]] <- X_lp_valid_b
+      Y_lp_valid[[n]] <- Y_lp_valid_b
+      X_lp_invalid[[n]] <- X_lp_invalid_b
+      Y_lp_invalid[[n]] <- Y_lp_invalid_b
+
+      Y_valid[[n]] <- Y_valid_b
+      Y_invalid[[n]] <- Y_invalid_b
+      X_valid[[n]] <- X_valid_b
+      X_invalid[[n]] <- X_invalid_b
+    }
+  }
+
   return(list('X_valid'=X_valid, 'Y_valid'=Y_valid, 'X_lp_valid'=X_lp_valid, 'Y_lp_valid'=Y_lp_valid))
 }

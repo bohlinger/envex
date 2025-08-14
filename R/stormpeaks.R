@@ -17,7 +17,7 @@ produce_storm_occurrences_v0 <- function(nr_of_events, RP,
   #' @param nr_of_events nr of events in dataset (integer)
   #' @param RP return period (RP) (integer)
   #' @param nr_of_years nr of years the dataset covers (integer)
-  #' @param model_nr_of_events ppgam model object for occurrences given the covariates "doy" and "Pdir"
+  #' @param model_nr_of_events ppgam model object for occurrences given the covariates
   #' @return df dataset of unfolded set of covariates ready to be used for GPD or other model
   #'
   #' @examples
@@ -81,7 +81,7 @@ produce_storm_occurrences <- function(nr_of_events, RP,
   #' @param nr_of_events nr of events in dataset (integer)
   #' @param RP return period (RP) (integer)
   #' @param nr_of_years nr of years the dataset covers (integer)
-  #' @param model_nr_of_events ppgam model object for occurrences given the covariates "doy" and "Pdir"
+  #' @param model_nr_of_events ppgam model object for occurrences given the covariates
   #' @return df dataset of unfolded set of covariates ready to be used for GPD or other model
   #'
   #' @examples

@@ -89,7 +89,7 @@ storm_trajectory_Hmax <- function(hs_traj, tm02_traj, tdelta=3600, llim=0,
     print(c('Most likely Hmax:', mode_of_deriv))
     print(c('Expected Hmax:', E_of_deriv))
   }
-  return(c(mode_of_deriv,E_of_deriv))
+  return(list("Hmax_mode"=mode_of_deriv,"Hmax_E"=E_of_deriv,"deriv"=deriv,"x_lst_diff"=x_lst_diff))
 }
 
 forristall_Hs <- function(Hs,H,a=0.681,b=2.126){
@@ -116,7 +116,7 @@ prevosto_Hs_2nd <- function(Hs,H,a=2.13,b=8.42){
   #'
   #' @export
 
-  P <- exp(-(1/b)(H/(Hs/4))**a)
+  P <- exp(-(1/b)*(H/(Hs/4))**a)
   return(P)
 }
 
@@ -298,7 +298,7 @@ compute_T_from_steepness <- function(hs,s,g=9.81){
   return(T)
 }
 
-find_idxs_closest_storm_peaks <- function(simPeakHs, simPeakTm,
+find_idxs_closest_storm_peaks_hs_tm <- function(simPeakHs, simPeakTm,
                                           histPeaksHs, histPeaksTm,
                                           sidx=1, eidx=10){
   #' @param simPeakHs simulated peak of Hs
@@ -330,6 +330,36 @@ find_idxs_closest_storm_peaks_hs <- function(simPeakHs, histPeaksHs,
   #' @export
 
   dists <- abs(histPeaksHs-simPeakHs)
+  return(order(dists)[sidx:eidx])
+}
+
+find_idx_closest_storm_peaks <- function(simPeaksMV, histPeaksMV, varlst=NULL,
+                                         sidx=1, eidx=10){
+  #' @param simPeaksMV multivariate simulated peak of Hs
+  #' @param histPeaksMV multivariate historic peaks of Hs to match
+  #' @param varlst list of matching variables
+  #' @param sidx start idx
+  #' @param eidx end idx
+  #'
+  #' @return Array of closest storm peak idx
+  #'
+  #' @export
+
+  dists <- NULL
+  if (is.null(varlst)){
+    varlst <- names(simPeaksMV)
+  }
+
+  for (n in 1:length(varlst)) {
+    dists[[varlst[n]]] <- abs(histPeaksMV[[varlst[n]]]-simPeakHs[[varlst[n]]])
+  }
+
+  # multidim Pythagoras
+  sumdist <- sqrt(unlist(dists))/length(unlist(dists))
+
+  distsHs <- abs(histPeaksHs-simPeakHs)
+  distsTm <- abs(histPeaksTm-simPeakTm)
+  dists <- sqrt(distsHs**2+distsTm**2)
   return(order(dists)[sidx:eidx])
 }
 
@@ -403,7 +433,7 @@ find_storm_match <- function(simPeakHs, simPeakTm=0,
   return(stormTraj_scaled)
 }
 
-Hmax_distr_from_hist_matching <- function(simPeaksHs, simPeakTm=0,
+Hmax_distr_from_hist_matching_v0 <- function(simPeaksHs, simPeakTm=0,
                                           sidx=1, eidx=10,
                                           hist_df, storm_thr, var_str,
                                           tdelta=3600){
@@ -432,6 +462,44 @@ Hmax_distr_from_hist_matching <- function(simPeaksHs, simPeakTm=0,
     hs_storm <- trajs[[1]]
     tm2_storm <- trajs[[2]]
     A_Hmax[p] <- storm_trajectory_Hmax(hs_storm, tm2_storm, tdelta)[1] # 1=mode, 2=mean
+  }
+  return(A_Hmax)
+}
+
+Hmax_distr_from_hist_matching  <- function(simPeaksMV, histPeaksMV, histStormsMV,
+                                           idxmatches, tdelta=3600, dist="forristall"){
+  #' @param simPeaksMV Array of simulated peaks of Hs
+  #' @param histPeaksMV Array of simulated peaks of Hs
+  #' @param histStormsMV Array of simulated peaks of Hs
+  #' @param idxmatches
+  #' @param tdelta Time-step in seconds
+  #'
+  #' @return A_Hmax Array of Hmax'es
+  #'
+  #' @export
+
+  # define storm peaks
+
+  A_Hmax <- array(1, length(idxmatches))*NA
+  for (i in 1:length(idxmatches)) {
+    print(i)
+    # isolate storm trajectory
+    print("get storm_idx")
+    storm_idx <- histPeaksMV$storm_idx[idxmatches[i]]
+    print(storm_idx)
+    print("get storm traj")
+    stormTraj <- subset(histStormsMV, histStormsMV$storm_idx==storm_idx)
+    # scale storm
+    print("scale storm")
+    scaling <-  get_constant_scaling(simPeaksMV$hs[i], histPeaksMV$hs[idxmatches[i]])
+    stormTraj_scaled <- stormTraj$hs * scaling
+    hs_storm <- stormTraj_scaled
+    print("compute T")
+    tm_storm <- compute_T_from_steepness(stormTraj_scaled, stormTraj$s_tm1)
+    print(hs_storm)
+    print(tm_storm)
+    print("compute Hmax for storm")
+    A_Hmax[i] <- storm_trajectory_Hmax(hs_storm, tm_storm, tdelta, dist=dist)[1] # 1=mode, 2=mean
   }
   return(A_Hmax)
 }
