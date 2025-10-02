@@ -149,6 +149,10 @@ Hmax_rayleigh_Hs <- function(P,Hs) {
   return(Hmax)
 }
 
+#sample_example <- function(n, Hs, k){
+#  return(sqrt(log(1/runif(n))/2)*Hs)
+#}
+
 Hmax_forristall_Hs <- function(P,Hs,a=0.681,b=2.126) {
 
   #' @param Hs Significant wave height

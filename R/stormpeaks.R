@@ -138,6 +138,93 @@ produce_storm_occurrences <- function(nr_of_events, RP,
   return(dfcounts)
 }
 
+produce_storm_occurrences_tmp <- function(nr_of_events, RP,
+                                      nr_of_years,
+                                      model_nr_of_events,
+                                      covarstr_lst,
+                                      covar_mins, covar_maxes,
+                                      condition=NULL){
+  #' Produce storm occurrences by producing the appropriate number
+  #' of coinciding covariates utilizing rejection sampling.
+  #'
+  #' @param nr_of_events nr of events in dataset (integer)
+  #' @param RP return period (RP) (integer)
+  #' @param nr_of_years nr of years the dataset covers (integer)
+  #' @param model_nr_of_events ppgam model object for occurrences given the covariates
+  #' @return df dataset of unfolded set of covariates ready to be used for GPD or other model
+  #'
+  #' @examples
+  #' storms <- produce_storm_occurrences(nr_of_events, RP, model_nr_of_events)
+  #'
+  #' @export
+
+  # simulate storm peaks from poisson
+  print(c('nr_of_events:', nr_of_events))
+  lambda <- nr_of_events*RP
+  nr_of_events_sim <- rpois(1, lambda=lambda)
+
+  newdf <- as.data.frame(array(NA,dim=c(nr_of_events_sim,(length(covarstr_lst)+1))))
+  colnames(newdf) <- c('counts', covarstr_lst)
+
+  for (i in 1:length(covarstr_lst)){
+    covar_samples <- runif(nr_of_events_sim, min = covar_mins[i], max = covar_maxes[i])
+    newdf[[covarstr_lst[i]]] <- covar_samples
+  }
+
+  predcounts <- predict(model_nr_of_events, newdata = newdf, type = 'response')
+
+  # find lambda_max
+  lambda_max <- max(predcounts)
+
+  ranges=NULL
+  for (i in 1:length(covar_maxes)){
+    ranges[[covarstr_lst[i]]] = c(covar_mins[i], covar_maxes[i])
+  }
+
+  print(c('ranges',ranges))
+
+  sim_ipp_thinning <- function(model_nr_of_events, ranges, lambda_max) {
+    # Ensure that lambda_max is positive
+    stopifnot(lambda_max > 0)
+
+    # Calculate the area (product of the lengths of the ranges)
+    area <- prod(sapply(ranges, function(r) diff(r)))
+
+    # Generate the number of candidate points
+    n_cand <- rpois(1, lambda_max * area)
+
+    # Generate candidate points for each variable
+    candidates <- lapply(ranges, function(r) runif(n_cand, min = r[1], max = r[2]))
+
+    # Convert the list of candidates to a data frame
+    candidate_df <- as.data.frame(candidates)
+
+    lambdas <- predict(model_nr_of_events, newdata = candidate_df, type = 'response')
+
+    # acceptance probability
+    PA <- NULL
+    for (i in 1:n_cand){
+      PA[[i]] <- lambdas[i]/lambda_max
+    }
+    PA <- unlist(PA)
+
+    # Thinning step: Evaluate the lambda function
+    keep <- NULL
+    for (i in 1:n_cand){
+      keep[[i]] <- runif(1) < PA[i]
+    }
+    keep <- unlist(keep)
+    # Return the points that were kept
+    candidate_df[keep, ]
+  }
+
+  tmp_res <- sim_ipp_thinning(model_nr_of_events, ranges, lambda_max)
+  tmp_res[['counts']] <- seq(1,dim(tmp_res)[1])*0+1
+
+  print(c('nr_of_events_sim:', dim(tmp_res)[1]))
+  return(tmp_res)
+}
+
 
 get_ann_max <- function(df_all, list_of_years, var_str, year_str){
   #' @param df_all dataframe to use with all info included
@@ -178,7 +265,7 @@ calc_Hs_RV <- function(df_all, marginal_Hs_model, RP, Hs_str, year_str){
   return(Hs_RV)
 }
 
-get_Hs_bins_and_fit_ln <- function(df_all, Hs_str, T_str){
+get_Hs_bins_and_fit_ln <- function(df_all, Hs_str, T_str, sbinval=NULL, ebinval=NULL, binsize=1){
   #' @param df_all dataframe to use with all info included
   #' @param Hs_str string of Hs variable
   #' @param Tp_str string of T variable
@@ -187,11 +274,18 @@ get_Hs_bins_and_fit_ln <- function(df_all, Hs_str, T_str){
   #'
   #' @export
   # bin hs in bins of 1m and perform a log-norm fit to all periods (e.g. Tp, Tm01, Tm02, ...) in one bin
-  array_size <- as.integer(max(df_all[[Hs_str]]))
-  ln_means <- array(0, array_size)*NA
-  ln_stds <- array(0, array_size)*NA
-  for (i in 1:array_size){
-    df_sub <- subset(df_all, df_all[[Hs_str]]>=(i-1) & df_all[[Hs_str]]<(i))
+  if (is.null(sbinval)){
+    sbinval=1
+  }
+  if (is.null(ebinval)){
+    ebinval=as.integer(max(df_all[[Hs_str]]))
+  }
+  seqtmp <- seq(sbinval,ebinval,binsize)
+  ln_means <- array(length(seqtmp))*NA
+  ln_stds <- array(length(seqtmp))*NA
+  for (i in 1:length(seqtmp)){
+    print(seqtmp[i])
+    df_sub <- subset(df_all, df_all[[Hs_str]]>=(seqtmp[i]-binsize) & df_all[[Hs_str]]<(seqtmp[i]))
     fit_wb <- fitdistr(df_sub[[T_str]], 'lognormal')
     ln_means[i] <- fit_wb$estimate[1]
     ln_stds[i] <- fit_wb$estimate[2]
@@ -208,7 +302,7 @@ fitMe <- function(params, X, Y) {
   return(error)
 }
 
-calc_Tp_RV <- function(ln_means, Hs_RV){
+calc_Tp_RV <- function(ln_means, Hs_RV, sbinval=NULL, ebinval=NULL, binsize=1){
   #' @param ln_means log-normal fits of T variable for Hs bins
   #' @param Hs_RV Return value of Hs
   #'
@@ -216,9 +310,15 @@ calc_Tp_RV <- function(ln_means, Hs_RV){
   #'
   #' @export
 
-  array_size <- length(ln_means)
-  X <- seq(array_size)-.5
-  Y <- ln_means[1:array_size]
+  if (is.null(sbinval)){
+    sbinval=1
+  }
+  if (is.null(ebinval)){
+    ebinval=as.integer(max(df_all[[Hs_str]]))
+  }
+  seqtmp <- seq(sbinval,ebinval,binsize)
+  X <- seqtmp-(binsize/2)
+  Y <- ln_means
 
   o <- optim(c(a0=1, a1=1, a2=1), X=X, Y=Y, fitMe)
   # o$par are the optimal parameters

@@ -75,11 +75,14 @@ diagnose_margs_occ <- function(marg, dfin, nbins, covarlst, nr_of_years,
                                         covar_mins, covar_maxes,
                                         condition = condition)
 
-  print(c('max predicted counts:', max(dfcounts$counts)))
+  print(covarlst[1])
+  print(dim(dfcounts))
 
-  if (is.null(cslims)){
-    cslims <- c(0,max(dfcounts$counts))
-  }
+  #print(c('max predicted counts:', max(dfcounts$counts)))
+
+  #if (is.null(cslims)){
+  #  cslims <- c(0,max(dfcounts$counts))
+  #}
 
   p1 <- ggplot(dfobs, aes(dfobs[[covarlst[1]]], dfobs[[covarlst[2]]])) +
     geom_bin2d(bins = nbins) +  # bins controls the number of bins
