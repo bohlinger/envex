@@ -69,6 +69,110 @@ produce_storm_occurrences_v0 <- function(nr_of_events, RP,
   return(dfcounts)
 }
 
+# applying Ben's version to data_sub_orig$y
+# rounding function
+round_to_nearest <- function(x,interval,offset) {
+  rounded <- (round(x / interval) * interval) + offset
+  wrapped <- rounded %% 360
+  return(wrapped)
+}
+
+produce_storm_occurrences_rejection <- function(nr_of_events, RP,
+                                      nr_of_years,
+                                      model_nr_of_events,
+                                      covarstr_lst,
+                                      covar_mins, covar_maxes,
+                                      dfin = dfin,
+                                      condition = NULL,
+                                      grid_interval = NULL)
+{
+  # simulate storm peaks from poisson
+  print(c('nr_of_events:', nr_of_events))
+
+  # probing covariate space on defined grid to cover everything efficiently
+  # and hence retrieve the best lambda_max
+  covar_grid_sizes <- NULL
+  covar_grid <- NULL
+  for (i in 1:length(covarstr_lst)){
+    vargrid <- seq(covar_mins[i], covar_maxes[i], grid_interval[i])
+    covar_grid[[covarstr_lst[i]]] <- vargrid
+    covar_grid_sizes[[covarstr_lst[i]]] <- length(vargrid)
+  }
+  nr_of_grid_cells <- prod(unlist(covar_grid_sizes))
+  mv_grid <- expand.grid(covar_grid)
+
+  newdf <- as.data.frame(array(NA,dim=c((nr_of_grid_cells),(length(covarstr_lst)+1))))
+  colnames(newdf) <- c('counts', covarstr_lst)
+
+  for (i in 1:length(covarstr_lst)){
+    newdf[[covarstr_lst[i]]] <-mv_grid[[covarstr_lst[i]]]
+  }
+  pred_lambdas <- predict(model_nr_of_events, newdata = newdf, type = 'response')
+
+  # get max of predicted lambdas for rejection probability
+  lambda_max <- max(pred_lambdas)
+  print(c('sum(predcounts)',sum(pred_lambdas)))
+  print(c('lambda_max',lambda_max))
+
+  # establish proposal_N, number of random samples from the covariate space
+  proposal_N <- rpois(1, nr_of_events * lambda_max * RP)
+  print(c('proposal_N:',proposal_N))
+
+  # draw random values for each covariate according to their EDF
+  # later replaced by rejection sampling to be more general
+  dfobs <- dfin[,covarstr_lst]
+
+  samples = NULL
+  if (length(covarstr_lst)==1){
+    samples[[covarstr_lst[1]]] = sample(dfobs, proposal_N, replace = TRUE)
+  }
+  else if (length(covarstr_lst)>1){
+    for (c in covarstr_lst){
+      samples[[c]] = sample(dfobs[[c]], proposal_N, replace = TRUE)
+    }
+  }
+
+  pred_data <- as.data.frame(samples)
+  new_pred_lambda <- predict(model_nr_of_events, newdata = pred_data, type = 'response')
+
+  counts_lst <- NULL
+  keep_lst <- NULL
+  for (i in 1:proposal_N){
+    keep <- new_pred_lambda[i] / lambda_max > runif(1)
+    if (keep==TRUE){
+      counts_lst[[i]] <- 1
+      keep_lst[[i]] <- TRUE
+    } else{
+      keep_lst[[i]] <- FALSE
+    }
+  }
+
+  counts_lst <- unlist(counts_lst)
+  keep_unlist <- unlist(keep_lst)
+
+  if (length(covarstr_lst)==1){
+    dfcounts <- NULL
+    dfcounts[[covarstr_lst[1]]] <- pred_data[keep_unlist,]
+    dfcounts <- as.data.frame(dfcounts)
+  } else{
+    dfcounts <- pred_data[keep_unlist,]
+    dfcounts$counts <- counts_lst
+  }
+
+  # filter according to covariate constraints
+  if (!is.null(condition)){
+    print("filtering for condition:")
+    print(c("  ", condition))
+    condition_expr <- parse_expr(condition)
+    dfcounts <- dfcounts %>% filter(!!condition_expr)
+    nr_of_events_sim <- dim(dfcounts)[1]
+  }
+
+  print(c('nr_of_sims:',dim(dfcounts)[1]))
+
+  return(dfcounts)
+}
+
 produce_storm_occurrences <- function(nr_of_events, RP,
                                       nr_of_years,
                                       model_nr_of_events,
@@ -137,94 +241,6 @@ produce_storm_occurrences <- function(nr_of_events, RP,
   print(c('nr_of_events_sim:', dim(dfcounts)[1]))
   return(dfcounts)
 }
-
-produce_storm_occurrences_tmp <- function(nr_of_events, RP,
-                                      nr_of_years,
-                                      model_nr_of_events,
-                                      covarstr_lst,
-                                      covar_mins, covar_maxes,
-                                      condition=NULL){
-  #' Produce storm occurrences by producing the appropriate number
-  #' of coinciding covariates utilizing rejection sampling.
-  #'
-  #' @param nr_of_events nr of events in dataset (integer)
-  #' @param RP return period (RP) (integer)
-  #' @param nr_of_years nr of years the dataset covers (integer)
-  #' @param model_nr_of_events ppgam model object for occurrences given the covariates
-  #' @return df dataset of unfolded set of covariates ready to be used for GPD or other model
-  #'
-  #' @examples
-  #' storms <- produce_storm_occurrences(nr_of_events, RP, model_nr_of_events)
-  #'
-  #' @export
-
-  # simulate storm peaks from poisson
-  print(c('nr_of_events:', nr_of_events))
-  lambda <- nr_of_events*RP
-  nr_of_events_sim <- rpois(1, lambda=lambda)
-
-  newdf <- as.data.frame(array(NA,dim=c(nr_of_events_sim,(length(covarstr_lst)+1))))
-  colnames(newdf) <- c('counts', covarstr_lst)
-
-  for (i in 1:length(covarstr_lst)){
-    covar_samples <- runif(nr_of_events_sim, min = covar_mins[i], max = covar_maxes[i])
-    newdf[[covarstr_lst[i]]] <- covar_samples
-  }
-
-  predcounts <- predict(model_nr_of_events, newdata = newdf, type = 'response')
-
-  # find lambda_max
-  lambda_max <- max(predcounts)
-
-  ranges=NULL
-  for (i in 1:length(covar_maxes)){
-    ranges[[covarstr_lst[i]]] = c(covar_mins[i], covar_maxes[i])
-  }
-
-  print(c('ranges',ranges))
-
-  sim_ipp_thinning <- function(model_nr_of_events, ranges, lambda_max) {
-    # Ensure that lambda_max is positive
-    stopifnot(lambda_max > 0)
-
-    # Calculate the area (product of the lengths of the ranges)
-    area <- prod(sapply(ranges, function(r) diff(r)))
-
-    # Generate the number of candidate points
-    n_cand <- rpois(1, lambda_max * area)
-
-    # Generate candidate points for each variable
-    candidates <- lapply(ranges, function(r) runif(n_cand, min = r[1], max = r[2]))
-
-    # Convert the list of candidates to a data frame
-    candidate_df <- as.data.frame(candidates)
-
-    lambdas <- predict(model_nr_of_events, newdata = candidate_df, type = 'response')
-
-    # acceptance probability
-    PA <- NULL
-    for (i in 1:n_cand){
-      PA[[i]] <- lambdas[i]/lambda_max
-    }
-    PA <- unlist(PA)
-
-    # Thinning step: Evaluate the lambda function
-    keep <- NULL
-    for (i in 1:n_cand){
-      keep[[i]] <- runif(1) < PA[i]
-    }
-    keep <- unlist(keep)
-    # Return the points that were kept
-    candidate_df[keep, ]
-  }
-
-  tmp_res <- sim_ipp_thinning(model_nr_of_events, ranges, lambda_max)
-  tmp_res[['counts']] <- seq(1,dim(tmp_res)[1])*0+1
-
-  print(c('nr_of_events_sim:', dim(tmp_res)[1]))
-  return(tmp_res)
-}
-
 
 get_ann_max <- function(df_all, list_of_years, var_str, year_str){
   #' @param df_all dataframe to use with all info included
@@ -386,7 +402,7 @@ get_probability <- function(dfin, m_ald, m_gpd, var_str = 'hs', nsim=1){
 }
 
 
-fit_marginal_models_thr <- function(dfin, thr, model_fml, list_var=NULL, m_params=NULL){
+fit_marginal_models_thr <- function(dfin, thr, model_fml, list_var=NULL, m_params=NULL, knots=NULL){
   #' @export
   #'
   if (is.null(list_var)){
@@ -395,19 +411,25 @@ fit_marginal_models_thr <- function(dfin, thr, model_fml, list_var=NULL, m_param
   margs <- NULL
   for (n in list_var){
     print(c("fit threshold model for",n))
+    # bootstrap extremal threshold within bounds
+    if (length(thr[[n]])>1){
+      t <- round(runif(1, min = thr[[n]][1], max = thr[[n]][2]),2)
+    } else {t <- thr[[n]]}
+
     if (is.null(m_params)){
-      margs[[n]] <- evgam(model_fml[[n]], dfin, family="ald", ald.args=list(tau=thr))
+      margs[[n]] <- evgam(model_fml[[n]], dfin, family="ald", ald.args=list(tau=t), knots=knots)
     } else {
       margs[[n]] <- evgam(model_fml[[n]], dfin, family="ald",
-                          ald.args=list(tau=thr), sp=m_params[[n]]$sp)
+                          ald.args=list(tau=t), sp=m_params[[n]]$sp,
+                          knots=knots)
     }
   }
   return (margs)
 }
 
 
-fit_marginal_models_gpd <- function(dfin, model_fml, list_var=NULL,
-                                    m_params=NULL, trace=0){
+fit_marginal_models_gpd <- function(dfin, model_fml, list_var=NULL, family='gpd2',
+                                    m_params=NULL, knots=NULL, trace=0){
   #' @export
   #'
   margs <- NULL
@@ -417,36 +439,45 @@ fit_marginal_models_gpd <- function(dfin, model_fml, list_var=NULL,
   for (n in list_var){
     print(c("fit gpd model for",n))
     if (is.null(m_params)){
-      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd2", trace=trace)
+      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family=family,
+                          trace=trace, knots=knots)
     } else {
-      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family="gpd2",
-                          sp=m_params[[n]]$sp, trace=trace)
+      margs[[n]] <- evgam(model_fml[[n]], dfin[[n]], family=family,
+                          sp=m_params[[n]]$sp, trace=trace,
+                          knots=knots)
     }
   }
   return (margs)
 }
 
 fit_marginal_models_occ <- function(dfin, model_fml, nr_of_years,
-                                    list_var=NULL, nquad=20, m_params=NULL){
+                                    list_var=NULL, nquad=20, m_params=NULL,
+                                    knots=NULL, nodes=NULL){
   #' @export
   #'
   margs <- NULL
   if (is.null(list_var)){
     list_var <- names(model_fml)
   }
+
   for (n in list_var){
     print(c("fit occurrence model for",n))
+
     if (is.null(m_params)){
       margs[[n]] <- ppgam(model_fml[[n]],
                           data = dfin[[n]],
                           weights = nr_of_years*dim(dfin[[1]])[1],
-                          nquad = nquad)
+                          nquad = nquad,
+                          knots = knots,
+                          nodes = nodes)
     } else {
       margs[[n]] <- ppgam(model_fml[[n]],
                           data = dfin[[n]],
                           weights = nr_of_years*dim(dfin[[1]])[1],
                           sp = m_params[[n]]$sp,
-                          nquad = nquad)
+                          nquad = nquad,
+                          knots = knots,
+                          nodes = nodes)
     }
   }
   return (margs)

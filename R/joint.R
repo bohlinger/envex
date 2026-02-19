@@ -647,11 +647,17 @@ unfold_maxd_params_bstrp_v2 <- function(maxds_vars, X_var_str, Y_var_str,
 
 fit_margs_bstrp <- function(dfin,
                             model_fml_thr, model_fml_occ, model_fml_gpd,
-                            extr_thr, nr_of_years, thr_str='thr', list_var=NULL,
-                            margs_thr_orig=NULL,
-                            margs_gpd_orig=NULL,
-                            nbstrp=NULL,
-                            nquad=40){
+                            extr_thr, nr_of_years,
+                            thr_str = 'thr',
+                            list_var = NULL,
+                            margs_thr_orig = NULL,
+                            margs_gpd_orig = NULL,
+                            nbstrp = NULL,
+                            nquad = 40,
+                            knots = NULL,
+                            mids = NULL,
+                            breaks = NULL,
+                            nodes = NULL){
   #' @export
   #'
   margs <- NULL
@@ -671,18 +677,14 @@ fit_margs_bstrp <- function(dfin,
 
     ### Fitting marginals ###
 
-    # bootstrap extremal threshold within bounds
-    if (length(extr_thr)>1){
-      t <- runif(1, min = extr_thr[1], max = extr_thr[2])
-    } else {t <- extr_thr}
-
     print(c("bootstrap nr:",i))
     print("fit threshold model")
     margs_thr <- fit_marginal_models_thr(dfin = dfin[[i]],
                                          list_var = list_var,
-                                         thr = t,
+                                         thr = extr_thr,
                                          model_fml = model_fml_thr,
-                                         m_params = margs_thr_orig)
+                                         m_params = margs_thr_orig,
+                                         knots = knots)
 
     print("subset to pots above threshold")
     data_sub <- subset_df(margs_thr, thr_str='thr', exc_str='exc')
@@ -691,14 +693,25 @@ fit_margs_bstrp <- function(dfin,
     margs_gpd <- fit_marginal_models_gpd(dfin = data_sub,
                                          list_var = list_var,
                                          model_fml = model_fml_gpd,
-                                         m_params = margs_gpd_orig)
+                                         m_params = margs_gpd_orig,
+                                         knots = knots)
+
+    # define weights (wts) and nodes given knots
+    if (is.null(nodes)){
+      histPdir <- hist(data_sub[[list_var[1]]]$Pdir,
+                       breaks = breaks.Pdir, plot=FALSE)
+      wts.Pdir <- histPdir$counts/sum(histPdir$counts)
+      nodes = list(Pdir = cbind(mids.Pdir, wts.Pdir))
+    }
 
     print("fit occ model")
     margs_occ <- fit_marginal_models_occ(dfin = data_sub,
                                          list_var = list_var,
                                          model_fml = model_fml_occ,
                                          nr_of_years = nr_of_years,
-                                         nquad = nquad)
+                                         nquad = nquad,
+                                         knots = knots,
+                                         nodes = nodes)
 
     probs <- compute_probs(margs_thr, margs_gpd, dfin = dfin[[i]],
                            list_var = list_var, thr_str = 'thr')[['probs']]
@@ -714,77 +727,7 @@ fit_margs_bstrp <- function(dfin,
   return(margs)
 }
 
-fit_models_bstrp <- function(dfin,
-                             model_fml_thr, model_fml_occ, model_fml_gpd,
-                             maxd_thr_lst, extr_thr,
-                             thr_str='thr', list_var=NULL,
-                             margs_thr_orig=NULL,
-                             margs_gpd_orig=NULL){
-  #' @export
-  #'
-  if (is.null(list_var)){
-    list_var <- names(model_fml_thr)
-  }
-  print(c('Considered variables:',list_var))
-  maxds_vars <- NULL
-  margs_vars <- NULL
-  for (n in list_var){
-    maxds_thr <- NULL
-    margs_thr <- NULL
-    for (t in 1:length(maxd_thr_lst)){
-      maxds_bstr <- NULL
-      margs_bstr <- NULL
-      for (i in 1:length(dfin)){
-        ### Fitting marginals ###
-        print(c("variable:",n,"threshold nr:",t,"bootstrap nr:",i))
-        print("fit threshold model")
-        margs_thr <- fit_marginal_models_thr(dfin = dfin[[i]],
-                                             list_var = list_var,
-                                             thr = extr_thr,
-                                             model_fml = model_fml_thr,
-                                             m_params = margs_thr_orig)
-
-        print("subset to pots above threshold")
-        data_sub <- subset_df(margs_thr, thr_str='thr', exc_str='exc')
-
-        print("fit GPD model")
-        margs_gpd <- fit_marginal_models_gpd(dfin = data_sub,
-                                             list_var = list_var,
-                                             model_fml = model_fml_gpd,
-                                             m_params = margs_gpd_orig)
-
-        print("fit occ model")
-        margs_occ <- fit_marginal_models_occ(dfin = data_sub,
-                                             list_var = list_var,
-                                             model_fml = model_fml_occ,
-                                             nr_of_years = nr_of_years)
-
-        margs <- NULL
-        margs[['thr']] <- margs_thr
-        margs[['gpd']] <- margs_gpd
-        margs[['occ']] <- margs_occ
-
-        probs <- compute_probs(margs_thr, margs_gpd, dfin = dfin[[i]],
-                               list_var = list_var, thr_str = 'thr')[['probs']]
-
-        lp_margs <- compute_lp_margs(probs)
-
-        maxd <- fit_HT2004(lp_margs, thr = maxd_thr_lst[t])
-
-        maxds_bstr[[i]] <- maxd
-        margs_bstr[[i]] <- margs
-      }
-      maxds_thr[[t]] <- maxds_bstr
-      margs_thr[[t]] <- margs_bstr
-    }
-    maxds_vars[[n]] <- maxds_thr
-    margs_vars[[n]] <- margs_thr
-  }
-  return(list("maxds"=maxds_vars,"margs"=margs_vars))
-}
-
-fit_maxds_bstrp <- function(dfin, margs,
-                            maxd_thr, nbstrp=NULL){
+fit_maxds_bstrp <- function(dfin, margs, maxd_thr, nbstrp=NULL){
   #' @export
   #'
 
@@ -825,28 +768,39 @@ predict_maxd <- function(maxd, varstr_X, varstr_Y, nsim){
 
 predict_from_HT2004_models <- function(margs, maxds, nr_of_years, RP,
                                        var_lst, nbstrp, nmc=1,
-                                       preds=NULL, condition=NULL){
+                                       preds=NULL, condition=NULL,
+                                       grid_interval=NULL, covar_lst=NULL){
   #' @export
 
   if (is.null(var_lst)){
     var_lst <- names(maxds[[1]])
   }
 
+  if (is.null(covar_lst)){
+    covar_lst <- margs[[1]][[1]][[1]]$predictor.names
+  }
+
   lp_Y_bstrp <- NULL
   lp_X_bstrp <- NULL
   X_bstrp <- NULL
+  covar_bstrp <- NULL
+
   if (is.null(preds)){
     # predict values from non-stationary marginal model if not supplied
     preds <- predict_margs(margs, nr_of_years, RP,
                            nmc = nmc,
                            var_lst = var_lst,
                            nbstrp = nbstrp,
-                           condition = condition)
+                           condition = condition,
+                           grid_interval = grid_interval)
   }
+
   for (b in 1:nbstrp){
     lp_Y_lst <- NULL
     lp_X_lst <- NULL
     X_lst <- NULL
+    covar <- NULL
+
     for (n in 1:length(var_lst)){
       lp_Y_lst_tmp <- NULL
       tmplst <- var_lst[-n]
@@ -858,18 +812,26 @@ predict_from_HT2004_models <- function(margs, maxds, nr_of_years, RP,
         tmp_alpha <- maxds[[b]][[var_lst[n]]][[m]]$params$par[1]
         tmp_beta <- maxds[[b]][[var_lst[n]]][[m]]$params$par[2]
         tmp_Z <- maxds[[b]][[var_lst[n]]][[m]][['Z']]
-        lp_Y <- tmp_alpha * lp_X + lp_X**(tmp_beta) * tmp_Z[runif_func(length(lp_X), min=1, max=length(tmp_Z))]
+        lp_Y <- tmp_alpha * lp_X + lp_X**(tmp_beta) *
+                tmp_Z[runif_func(length(lp_X), min=1, max=length(tmp_Z))]
         lp_Y_lst_tmp[[m]] <- as.numeric(lp_Y)
       }
+
       lp_Y_lst[[var_lst[n]]] <- lp_Y_lst_tmp
       lp_X_lst[[var_lst[n]]] <- lp_X
       X_lst[[var_lst[n]]] <- X_sim
+      for (nc in 1:length(covar_lst)){
+        covar[[var_lst[n]]][[covar_lst[nc]]] <- preds[[b]][[var_lst[n]]][[covar_lst[nc]]]
+      }
     }
+
     lp_Y_bstrp[[b]] <- lp_Y_lst
     lp_X_bstrp[[b]] <- lp_X_lst
     X_bstrp[[b]] <- X_lst
+    covar_bstrp[[b]] <- covar
   }
-  return(list("lp_Y" = lp_Y_bstrp, "lp_X" = lp_X_bstrp, "X" = X_bstrp))
+
+  return(list("lp_Y" = lp_Y_bstrp, "lp_X" = lp_X_bstrp, "X" = X_bstrp, "covar" = covar_bstrp))
 }
 
 convert_HT2004_preds_to_original_space <- function(margs, maxds,
@@ -890,25 +852,31 @@ convert_HT2004_preds_to_original_space <- function(margs, maxds,
   for (b in 1:nbstrp){
     Y_lst <- NULL
     X_lst <- NULL
+    covar <- NULL
     for (n in 1:length(var_lst)){
       Y_lst_tmp <- NULL
       tmplst <- var_lst[-n]
       for (m in tmplst){
         lp_prob <- plaplace(maxd_preds$lp_Y[[b]][[var_lst[n]]][[m]])
-        thr_sim <- marg_preds[[1]][[m]]$thr
-        scale_sim <- marg_preds[[1]][[m]]$scale
-        shape_sim <- marg_preds[[1]][[m]]$shape
+        #thr_sim <- marg_preds[[1]][[m]]$thr
+        #scale_sim <- marg_preds[[1]][[m]]$scale
+        #shape_sim <- marg_preds[[1]][[m]]$shape
+        thr_sim <- marg_preds[[b]][[m]]$thr
+        scale_sim <- marg_preds[[b]][[m]]$scale
+        shape_sim <- marg_preds[[b]][[m]]$shape
         Y_lst_tmp[[m]] <- qgpd(lp_prob, mu = thr_sim, sigma = scale_sim,
                                xi = shape_sim, lower.tail = TRUE, log.p = FALSE)
       }
       Y_lst[[var_lst[n]]] <- Y_lst_tmp
+      covar[[var_lst[n]]] <- maxd_preds$covar[[b]][[var_lst[n]]]
     }
     Y_bstrp[[b]] <- Y_lst
+    Y_bstrp[[b]][['covar']] <- covar
   }
   return(Y_bstrp)
 }
 
-predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, nbstrp=NULL){
+predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, nbstrp=NULL, grid_interval=NULL){
   #' @export
   #'
 
@@ -935,9 +903,10 @@ predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, nb
       nr_of_events <- length(tmp[tmp>0])
       rm(tmp)
 
-      df_storm_cov <- produce_storm_occurrences(nr_of_events,
+      df_storm_cov <- produce_storm_occurrences_rejection(nr_of_events,
                                                 RP, nr_of_years,
-                                                margs[[b]]$occ[[var_lst[n]]])
+                                                margs[[b]]$occ[[var_lst[n]]],
+                                                grid_interval = grid_interval)
 
       # predict from ALD
       print("predict threshold")
@@ -1008,7 +977,8 @@ predict_models_bstrp <- function(margs, maxds, nr_of_years, RP, var_lst=NULL, nb
 
 predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
                          covarstr_lst, covar_mins, covar_maxes,
-                         condition = NULL){
+                         condition = NULL, grid_interval = NULL,
+                         dfin = NULL){
   #' @export
   #'
 
@@ -1027,11 +997,13 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
   nr_of_events <- length(tmp[tmp>0])
   rm(tmp)
 
-  df_storm_cov <- produce_storm_occurrences(nr_of_events, RP, nr_of_years,
+  df_storm_cov <- produce_storm_occurrences_rejection(nr_of_events, RP, nr_of_years,
                                             margs$occ[[varstr]],
                                             covarstr_lst,
                                             covar_mins, covar_maxes,
-                                            condition = condition)
+                                            dfin = dfin,
+                                            condition = condition,
+                                            grid_interval = grid_interval)
 
   if (dim(df_storm_cov)[1]>0){
     # predict from ALD
@@ -1056,7 +1028,14 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
       max_scale <- scales[max_idx]
       max_shape <- shapes[max_idx]
       thr_max <- thr[max_idx]
-      df_pred_cov <- df_storm_cov[max_idx,]
+
+      if (length(predictor_names)==1){
+        df_pred_cov <- NULL
+        df_pred_cov[[predictor_names[1]]] <- df_storm_cov[max_idx,]
+        df_pred_cov <- as.data.frame(df_pred_cov)
+      } else {
+        df_pred_cov <- df_storm_cov[max_idx,]
+      }
 
       gpd_prob <- pevd(max_val, scale = max_scale, shape = max_shape,
                        threshold = thr_max, type = "GP", lower.tail = TRUE)
@@ -1084,7 +1063,7 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
 predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
                           var_lst=NULL, nbstrp=NULL,
                           covarstr_lst, covar_mins, covar_maxes,
-                          condition=NULL){
+                          condition=NULL, grid_interval = NULL){
   #' @export
   #'
 
@@ -1101,11 +1080,14 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
     print(c("number of boostraps (predict_margs):", b))
     preds_tmp_lst <- NULL
     for (n in 1:length(var_lst)){
+      dfin <- margs[[b]]$gpd[[var_lst[n]]]$data
       preds <- predict_marg(margs[[b]], nr_of_years, RP,
                             varstr = var_lst[n], nmc = nmc,
                             covarstr_lst,
                             covar_mins, covar_maxes,
-                            condition = condition)
+                            condition = condition,
+                            grid_interval = grid_interval,
+                            dfin = dfin)
       preds_tmp_lst[[var_lst[n]]] <- preds
     }
     preds_lst[[b]] <- preds_tmp_lst
@@ -1113,89 +1095,403 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
   return(preds_lst)
 }
 
-predict_margs_bstrp <- function(margs, nr_of_years,
-                                RP, var_lst=NULL, nbstrp=NULL){
-  #' @export
-  #'
+#predict_margs_bstrp <- function(margs, nr_of_years,
+#                                RP, var_lst=NULL, nbstrp=NULL,
+#                                grid_interval=NULL){
+#  #' @export
+#  #'
+#
+#  if (is.null(var_lst)){
+#    var_lst <- names(models$maxds)
+#  }
+#
+#  if (is.null(nbstrp)){
+#    nbstrp <- length(margs)
+#  }
+#
+#  df_max <- data.frame(matrix(ncol = 5, nrow = nbstrp))
+#  colnames(df_max) <- c("maxval", "scale", "shape", "thr", "prob")
+#  df_max_vals <- NULL
+#  for (n in var_lst){
+#    df_max_vals[[n]] <- df_max
+#  }
 
-  if (is.null(var_lst)){
-    var_lst <- names(models$maxds)
-  }
+#  df_covs <- data.frame(matrix(ncol = length(margs[[1]]$thr[[1]]$predictor.names),
+#                               nrow = nbstrp))
+#  colnames(df_covs) <- margs[[1]]$thr[[1]]$predictor.names
+#  df_max_covs <- NULL
+#  for (n in var_lst){
+#    df_max_covs[[n]] <- df_covs
+#  }
+
+#  max_vals <- NULL
+#  for (b in 1:nbstrp){ # number of bootstraps
+#   for (n in 1:length(var_lst)){
+#
+#      # predict from PP: produce storms occurrences at correct rate
+#      print("produce storms")
+
+#      tmp <- margs[[b]]$thr[[n]]$data[[var_lst[n]]] - fitted(margs[[b]]$thr[[var_lst[n]]])$location
+#      nr_of_events <- length(tmp[tmp>0])
+#      rm(tmp)
+#
+#      df_storm_cov <- produce_storm_occurrences_rejection(nr_of_events, RP, nr_of_years,
+#                                                margs[[b]]$occ[[var_lst[n]]],
+#                                                covarstr_lst,
+#                                                covar_mins, covar_maxes,
+#                                                grid_interval = grid_interval)
+#
+#      # predict from ALD
+#      print("predict threshold")
+#      thr <- predict(margs[[b]]$thr[[var_lst[n]]], newdata = df_storm_cov,
+#                     type = "response")$location
+#
+#      # predict from GPD
+#      print("predict exceedences")
+#      gpd_param_sims <- predict(margs[[b]]$gpd[[var_lst[n]]],
+#                                newdata = df_storm_cov, type= "response")
+#      scales <- gpd_param_sims$scale
+#      shapes <- gpd_param_sims$shape
+#      gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
+#                       threshold = thr, type="GP")
+#      max_idx <- which(gpd_sims==max(gpd_sims))
+#
+#      # Save maximum
+#      print("save max and max_idx")
+#      max_val <- gpd_sims[max_idx]
+#      max_scale <- scales[max_idx]
+#      max_shape <- shapes[max_idx]
+#      thr_max <- thr[max_idx]
+#      df_pred <- df_storm_cov[max_idx,]
+#
+#      gpd_prob <- pevd(max_val, scale = max_scale, shape = max_shape, threshold = thr_max,
+#                       type = "GP", lower.tail = TRUE)
+#
+#      # store in output field
+#      df_max_vals[[var_lst[n]]][b,1] <- max_val
+#      df_max_vals[[var_lst[n]]][b,2] <- max_scale
+#      df_max_vals[[var_lst[n]]][b,3] <- max_shape
+#      df_max_vals[[var_lst[n]]][b,4] <- thr_max
+#      df_max_vals[[var_lst[n]]][b,5] <- gpd_prob
+#
+#      # store covariates
+#      df_max_covs[[var_lst[n]]][b,] <- df_pred[1,]
+#    }
+#  }
+#  return(list("max_vals"=df_max_vals, "max_covs"=df_max_covs))
+#}
+
+retrieve_valid_HT_samples_old <- function(preds_HT, preds_HT_lp, preds_margs,
+                                      varstr_X, varstr_Y, nbstrp=NULL,
+                                      region="default", models_maxds=NULL){
+  #' @export
+
+  # color the valid ones and add
+  # preds_HT <- HT_sims
+  # preds_HT_lp <- preds_HT
+  # preds_margs <- preds_margs_lst
+
+  # region: relates to region in LP space where different HT2004 models are
+  #         valid/appropriate. X is always assumed to be the conditioning
+  #         variable and Y the conditioned variable. By default only the
+  #         valid/appropriate region is output, this can be extended to
+  #         including the entire rectangle where X greater than a threshold.
+  #         This is the case when not filtering for valids at all, keyword "all".
+  #         Additionally this can be reduced to only the triangle where one
+  #         model is above threshold for both X and Y. To cover this entire
+  #         square where X and Y both are extreme this script needs to be run
+  #         twice swapping X and Y and consolidating the results, the keyword
+  #         for this is "both".
 
   if (is.null(nbstrp)){
-    nbstrp <- length(margs)
+    nbstrp <- length(preds_margs)
   }
 
-  df_max <- data.frame(matrix(ncol = 5, nrow = nbstrp))
-  colnames(df_max) <- c("maxval", "scale", "shape", "thr", "prob")
-  df_max_vals <- NULL
-  for (n in var_lst){
-    df_max_vals[[n]] <- df_max
-  }
+  Y_lp_valid <- NULL
+  Y_lp_invalid <- NULL
+  X_lp_valid <- NULL
+  X_lp_invalid <- NULL
 
-  df_covs <- data.frame(matrix(ncol = length(margs[[1]]$thr[[1]]$predictor.names),
-                               nrow = nbstrp))
-  colnames(df_covs) <- margs[[1]]$thr[[1]]$predictor.names
-  df_max_covs <- NULL
-  for (n in var_lst){
-    df_max_covs[[n]] <- df_covs
-  }
+  Y_valid <- NULL
+  Y_invalid <- NULL
+  X_valid <- NULL
+  X_invalid <- NULL
 
-  max_vals <- NULL
-  for (b in 1:nbstrp){ # number of bootstraps
-    for (n in 1:length(var_lst)){
+  covar_valid <- NULL
+  covar_invalid <- NULL
 
-      # predict from PP: produce storms occurrences at correct rate
-      print("produce storms")
+  if (region=="default"){
+    print("Greater than threshold on X, only valids")
+    for (n in varstr_Y){
+      X_lp_valid_b <- NULL
+      Y_lp_valid_b <- NULL
+      X_lp_invalid_b <- NULL
+      Y_lp_invalid_b <- NULL
 
-      tmp <- margs[[b]]$thr[[n]]$data[[var_lst[n]]] - fitted(margs[[b]]$thr[[var_lst[n]]])$location
-      nr_of_events <- length(tmp[tmp>0])
-      rm(tmp)
+      Y_valid_b <- NULL
+      Y_invalid_b <- NULL
+      X_valid_b <- NULL
+      X_invalid_b <- NULL
 
-      df_storm_cov <- produce_storm_occurrences(nr_of_events, RP, nr_of_years,
-                                                margs[[b]]$occ[[var_lst[n]]],
-                                                covarstr_lst,
-                                                covar_mins, covar_maxes)
+      covar_valid_b <- NULL
+      covar_invalid_b <- NULL
 
-      # predict from ALD
-      print("predict threshold")
-      thr <- predict(margs[[b]]$thr[[var_lst[n]]], newdata = df_storm_cov,
-                     type = "response")$location
+      for (b in 1:nbstrp){
+        X_lp_valid_tmp <- NULL
+        Y_lp_valid_tmp <- NULL
+        X_lp_invalid_tmp <- NULL
+        Y_lp_invalid_tmp <- NULL
 
-      # predict from GPD
-      print("predict exceedences")
-      gpd_param_sims <- predict(margs[[b]]$gpd[[var_lst[n]]],
-                                newdata = df_storm_cov, type= "response")
-      scales <- gpd_param_sims$scale
-      shapes <- gpd_param_sims$shape
-      gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
-                       threshold = thr, type="GP")
-      max_idx <- which(gpd_sims==max(gpd_sims))
+        Y_valid_tmp <- NULL
+        X_valid_tmp <- NULL
+        Y_invalid_tmp <- NULL
+        X_invalid_tmp <- NULL
 
-      # Save maximum
-      print("save max and max_idx")
-      max_val <- gpd_sims[max_idx]
-      max_scale <- scales[max_idx]
-      max_shape <- shapes[max_idx]
-      thr_max <- thr[max_idx]
-      df_pred <- df_storm_cov[max_idx,]
+        covar_valid_tmp <- NULL
+        covar_invalid_tmp <- NULL
 
-      gpd_prob <- pevd(max_val, scale = max_scale, shape = max_shape, threshold = thr_max,
-                       type = "GP", lower.tail = TRUE)
+        for (i in 1:length(preds_HT_lp$lp_X[[b]][[varstr_X]])){
+          covar_names <- names(preds_HT[[b]]$covar[[n]])
+          Y_maxes <- NULL
+          for (m in length(varstr_Y)){
+            Y_maxes[[m]] <- max(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]][i])
+          }
+          if (preds_HT_lp$lp_X[[b]][[varstr_X]][i]>max(unlist(Y_maxes))){
+            X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+            for (cn in covar_names){
+              covar_valid_tmp[[cn]][[i]] <- preds_HT[[b]][['covar']][[n]][[cn]][i]
+            }
+          } else{
+            X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+            for (cn in covar_names){
+              covar_invalid_tmp[[cn]][[i]] <- preds_HT[[b]][['covar']][[n]][[cn]][i]
+            }
+          }
+        }
+        X_lp_valid_b[[b]] <- X_lp_valid_tmp
+        Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
+        X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
+        Y_lp_invalid_b[[b]] <- Y_lp_invalid_tmp
 
-      # store in output field
-      df_max_vals[[var_lst[n]]][b,1] <- max_val
-      df_max_vals[[var_lst[n]]][b,2] <- max_scale
-      df_max_vals[[var_lst[n]]][b,3] <- max_shape
-      df_max_vals[[var_lst[n]]][b,4] <- thr_max
-      df_max_vals[[var_lst[n]]][b,5] <- gpd_prob
+        Y_valid_b[[b]] <- Y_valid_tmp
+        Y_invalid_b[[b]] <- Y_invalid_tmp
+        X_valid_b[[b]] <- X_valid_tmp
+        X_invalid_b[[b]] <- X_invalid_tmp
 
-      # store covariates
-      df_max_covs[[var_lst[n]]][b,] <- df_pred[1,]
+        covar_valid_b[[b]] <- covar_valid_tmp
+        covar_invalid_b[[b]] <- covar_invalid_tmp
+      }
+      X_lp_valid[[n]] <- X_lp_valid_b
+      Y_lp_valid[[n]] <- Y_lp_valid_b
+      X_lp_invalid[[n]] <- X_lp_invalid_b
+      Y_lp_invalid[[n]] <- Y_lp_invalid_b
+
+      Y_valid[[n]] <- Y_valid_b
+      Y_invalid[[n]] <- Y_invalid_b
+      X_valid[[n]] <- X_valid_b
+      X_invalid[[n]] <- X_invalid_b
+
+      covar_valid[[n]] <- covar_valid_b
+      covar_invalid[[n]] <- covar_invalid_b
     }
   }
-  return(list("max_vals"=df_max_vals, "max_covs"=df_max_covs))
+
+  if (region=="all"){
+    print("Greater than threshold on X")
+    for (n in varstr_Y){
+      X_lp_valid_b <- NULL
+      Y_lp_valid_b <- NULL
+      X_lp_invalid_b <- NULL
+      Y_lp_invalid_b <- NULL
+
+      Y_valid_b <- NULL
+      Y_invalid_b <- NULL
+      X_valid_b <- NULL
+      X_invalid_b <- NULL
+
+      covar_valid_b <- NULL
+      covar_invalid_b <- NULL
+
+      for (b in 1:nbstrp){
+        X_lp_valid_tmp <- NULL
+        Y_lp_valid_tmp <- NULL
+        X_lp_invalid_tmp <- NULL
+        Y_lp_invalid_tmp <- NULL
+
+        Y_valid_tmp <- NULL
+        X_valid_tmp <- NULL
+        Y_invalid_tmp <- NULL
+        X_invalid_tmp <- NULL
+
+        covar_valid_tmp <- NULL
+        covar_invalid_tmp <- NULL
+
+        for (i in 1:length(preds_HT_lp$lp_X[[b]][[varstr_X]])){
+          covar_names <- names(preds_HT[[b]]$covar[[n]])
+          thr <- models_maxds[[b]][[varstr_X]][[n]]$thr
+          thr_val <- quantile(models_maxds[[b]][[varstr_X]][[n]]$X_fit,thr)
+
+          print('HERE-1')
+          ##covar_valid_tmp[[i]] <- data.frame(matrix(ncol = length(covar_names), nrow = 0))
+          ##colnames(covar_valid_tmp[[i]]) <- covar_names
+          ##covar_invalid_tmp[[i]] <- data.frame(matrix(ncol = length(covar_names), nrow = 0))
+          ##colnames(covar_invalid_tmp[[i]]) <- covar_names
+          #print('HERE0')
+          #tmp <- preds_HT_lp$lp_X[[b]][[varstr_X]]
+          #X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][tmp>thr_val]
+          #Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][tmp>thr_val]
+          #Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][tmp>thr_val]
+          #X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[tmp>thr_val]
+
+          if (preds_HT_lp$lp_X[[b]][[varstr_X]][i]>thr_val){
+            X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+            for (cn in covar_names){
+              print('HERE valid')
+              print(cn)
+              print(preds_HT[[b]][['covar']][[n]][[cn]][i])
+              covar_valid_tmp[[i]][[cn]] <- preds_HT[[b]][['covar']][[n]][[cn]][i]
+            }
+          } else{
+            print('HERE invalid')
+            X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+            for (cn in covar_names){
+              covar_invalid_tmp[[i]][[cn]] <- preds_HT[[b]][['covar']][[n]][[cn]][i]
+            }
+          }
+        }
+        X_lp_valid_b[[b]] <- X_lp_valid_tmp
+        Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
+        X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
+        Y_lp_invalid_b[[b]] <- Y_lp_invalid_tmp
+
+        Y_valid_b[[b]] <- Y_valid_tmp
+        Y_invalid_b[[b]] <- Y_invalid_tmp
+        X_valid_b[[b]] <- X_valid_tmp
+        X_invalid_b[[b]] <- X_invalid_tmp
+
+        covar_valid_b[[b]] <- covar_valid_tmp
+        covar_invalid_b[[b]] <- covar_invalid_tmp
+      }
+      X_lp_valid[[n]] <- X_lp_valid_b
+      Y_lp_valid[[n]] <- Y_lp_valid_b
+      X_lp_invalid[[n]] <- X_lp_invalid_b
+      Y_lp_invalid[[n]] <- Y_lp_invalid_b
+
+      Y_valid[[n]] <- Y_valid_b
+      Y_invalid[[n]] <- Y_invalid_b
+      X_valid[[n]] <- X_valid_b
+      X_invalid[[n]] <- X_invalid_b
+
+      covar_valid[[n]] <- covar_valid_b
+      covar_invalid[[n]] <- covar_invalid_b
+    }
+  }
+
+  if (region=="both"){
+    print("Greater than threshold on X & greater than threshold on Y, only valids")
+    for (n in varstr_Y){
+      X_lp_valid_b <- NULL
+      Y_lp_valid_b <- NULL
+      X_lp_invalid_b <- NULL
+      Y_lp_invalid_b <- NULL
+
+      Y_valid_b <- NULL
+      Y_invalid_b <- NULL
+      X_valid_b <- NULL
+      X_invalid_b <- NULL
+
+      covar_valid_b <- NULL
+      covar_invalid_b <- NULL
+
+      for (b in 1:nbstrp){
+        X_lp_valid_tmp <- NULL
+        Y_lp_valid_tmp <- NULL
+        X_lp_invalid_tmp <- NULL
+        Y_lp_invalid_tmp <- NULL
+
+        Y_valid_tmp <- NULL
+        X_valid_tmp <- NULL
+        Y_invalid_tmp <- NULL
+        X_invalid_tmp <- NULL
+
+        covar_valid_tmp <- NULL
+        covar_invalid_tmp <- NULL
+
+        for (i in 1:length(preds_HT_lp$lp_X[[b]][[varstr_X]])){
+          Y_maxes <- NULL
+          covar_names <- names(preds_HT[[b]]$covar[[n]])
+
+          for (m in length(varstr_Y)){
+            Y_maxes[[m]] <- max(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]][i])
+          }
+          thr_x <- models_maxds[[b]][[varstr_X]][[n]]$thr
+          thr_val_x <- quantile(models_maxds[[b]][[varstr_X]][[n]]$X_fit,thr_x)
+          thr_y <- models_maxds[[b]][[n]][[varstr_X]]$thr
+          thr_val_y <- quantile(models_maxds[[b]][[n]][[varstr_X]]$X_fit,thr_y)
+
+          if (preds_HT_lp$lp_X[[b]][[varstr_X]][i]>max(unlist(Y_maxes)) &
+              preds_HT_lp$lp_X[[b]][[varstr_X]][i]>thr_val_x &
+              preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]>thr_val_y){
+            X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+            for (cn in covar_names){
+              covar_valid_tmp[[i]][[cn]] <- preds_HT[[b]][['covar']][[n]][[cn]][i]
+            }
+          } else{
+            X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
+            Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
+            Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
+            X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
+            for (cn in covar_names){
+              covar_invalid_tmp[[i]][[cn]] <- preds_HT[[b]][['covar']][[n]][[cn]][i]
+            }
+          }
+        }
+        X_lp_valid_b[[b]] <- X_lp_valid_tmp
+        Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
+        X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
+        Y_lp_invalid_b[[b]] <- Y_lp_invalid_tmp
+
+        Y_valid_b[[b]] <- Y_valid_tmp
+        Y_invalid_b[[b]] <- Y_invalid_tmp
+        X_valid_b[[b]] <- X_valid_tmp
+        X_invalid_b[[b]] <- X_invalid_tmp
+
+        covar_valid_b[[b]] <- covar_valid_tmp
+        covar_invalid_b[[b]] <- covar_invalid_tmp
+      }
+      X_lp_valid[[n]] <- X_lp_valid_b
+      Y_lp_valid[[n]] <- Y_lp_valid_b
+      X_lp_invalid[[n]] <- X_lp_invalid_b
+      Y_lp_invalid[[n]] <- Y_lp_invalid_b
+
+      Y_valid[[n]] <- Y_valid_b
+      Y_invalid[[n]] <- Y_invalid_b
+      X_valid[[n]] <- X_valid_b
+      X_invalid[[n]] <- X_invalid_b
+
+      covar_valid[[n]] <- covar_valid_b
+      covar_invalid[[n]] <- covar_invalid_b
+    }
+  }
+
+  return(list('X_valid'=X_valid, 'Y_valid'=Y_valid, 'X_lp_valid'=X_lp_valid, 'Y_lp_valid'=Y_lp_valid, 'covar_valid'=covar_valid))
 }
+
 
 retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
                                       varstr_X, varstr_Y, nbstrp=NULL,
@@ -1212,7 +1508,7 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
   #         variable and Y the conditioned variable. By default only the
   #         valid/appropriate region is output, this can be extended to
   #         including the entire rectangle where X greater than a threshold.
-  #         This is the case when not filtering for valids at all, kewyord "all".
+  #         This is the case when not filtering for valids at all, keyword "all".
   #         Additionally this can be reduced to only the triangle where one
   #         model is above threshold for both X and Y. To cover this entire
   #         square where X and Y both are extreme this script needs to be run
@@ -1223,15 +1519,18 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
     nbstrp <- length(preds_margs)
   }
 
-  X_lp_valid <- NULL
   Y_lp_valid <- NULL
-  X_lp_invalid <- NULL
   Y_lp_invalid <- NULL
+  X_lp_valid <- NULL
+  X_lp_invalid <- NULL
 
   Y_valid <- NULL
   Y_invalid <- NULL
   X_valid <- NULL
   X_invalid <- NULL
+
+  covar_valid <- NULL
+  covar_invalid <- NULL
 
   if (region=="default"){
     print("Greater than threshold on X, only valids")
@@ -1245,33 +1544,42 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
       Y_invalid_b <- NULL
       X_valid_b <- NULL
       X_invalid_b <- NULL
-      for (b in 1:nbstrp){
-        X_lp_valid_tmp <- NULL
-        Y_lp_valid_tmp <- NULL
-        X_lp_invalid_tmp <- NULL
-        Y_lp_invalid_tmp <- NULL
 
-        Y_valid_tmp <- NULL
-        X_valid_tmp <- NULL
-        Y_invalid_tmp <- NULL
-        X_invalid_tmp <- NULL
-        for (i in 1:length(preds_HT_lp$lp_X[[b]][[varstr_X]])){
-          Y_maxes <- NULL
-          for (m in length(varstr_Y)){
-            Y_maxes[[m]] <- max(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]][i])
-          }
-          if (preds_HT_lp$lp_X[[b]][[varstr_X]][i]>max(unlist(Y_maxes))){
-            X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
-            Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
-            Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
-            X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
-          } else{
-            X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
-            Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
-            Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
-            X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
-          }
+      covar_valid_b <- NULL
+      covar_invalid_b <- NULL
+
+      for (b in 1:nbstrp){
+        lp_Y_maxes <- NULL
+        for (m in length(varstr_Y)){
+          lp_Y_maxes[[m]] <- unlist(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]])
         }
+        lp_Y_maxes <- unlist(lp_Y_maxes)
+
+        covar_names <- names(preds_HT[[b]]$covar[[n]])
+
+        X_lp_valid_tmp <- preds_HT_lp$lp_X[[b]][[varstr_X]]
+        Y_lp_valid_tmp <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]]
+
+        accept_idx <- which(X_lp_valid_tmp>Y_lp_valid_tmp)
+        reject_idx <- which(X_lp_valid_tmp<Y_lp_valid_tmp)
+
+        X_lp_valid_tmp <- X_lp_valid_tmp[accept_idx]
+        Y_lp_valid_tmp <- Y_lp_valid_tmp[accept_idx]
+        X_lp_invalid_tmp <- X_lp_valid_tmp[reject_idx]
+        Y_lp_invalid_tmp <- Y_lp_valid_tmp[reject_idx]
+
+        Y_valid_tmp <- preds_HT[[b]][[varstr_X]][[n]][accept_idx]
+        X_valid_tmp <- preds_margs[[b]][[varstr_X]]$maxval[accept_idx]
+        Y_invalid_tmp <- preds_HT[[b]][[varstr_X]][[n]][reject_idx]
+        X_invalid_tmp <- preds_margs[[b]][[varstr_X]]$maxval[reject_idx]
+
+        covar_valid_tmp <- NULL
+        covar_invalid_tmp <- NULL
+        for (cn in covar_names){
+          covar_valid_tmp[[cn]] <- preds_HT[[b]][['covar']][[n]][[cn]][accept_idx]
+          covar_invalid_tmp[[cn]] <- preds_HT[[b]][['covar']][[n]][[cn]][reject_idx]
+        }
+
         X_lp_valid_b[[b]] <- X_lp_valid_tmp
         Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
         X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
@@ -1281,6 +1589,9 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
         Y_invalid_b[[b]] <- Y_invalid_tmp
         X_valid_b[[b]] <- X_valid_tmp
         X_invalid_b[[b]] <- X_invalid_tmp
+
+        covar_valid_b[[b]] <- covar_valid_tmp
+        covar_invalid_b[[b]] <- covar_invalid_tmp
       }
       X_lp_valid[[n]] <- X_lp_valid_b
       Y_lp_valid[[n]] <- Y_lp_valid_b
@@ -1291,140 +1602,75 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
       Y_invalid[[n]] <- Y_invalid_b
       X_valid[[n]] <- X_valid_b
       X_invalid[[n]] <- X_invalid_b
+
+      covar_valid[[n]] <- covar_valid_b
+      covar_invalid[[n]] <- covar_invalid_b
     }
   }
+  else if (region=="all"){
+    X_lp_valid_b <- NULL
+    Y_lp_valid_b <- NULL
+    X_lp_invalid_b <- NULL
+    Y_lp_invalid_b <- NULL
 
-  if (region=="all"){
-    print("Greater than threshold on X")
-    for (n in varstr_Y){
-      X_lp_valid_b <- NULL
-      Y_lp_valid_b <- NULL
-      X_lp_invalid_b <- NULL
-      Y_lp_invalid_b <- NULL
+    Y_valid_b <- NULL
+    Y_invalid_b <- NULL
+    X_valid_b <- NULL
+    X_invalid_b <- NULL
 
-      Y_valid_b <- NULL
-      Y_invalid_b <- NULL
-      X_valid_b <- NULL
-      X_invalid_b <- NULL
-      for (b in 1:nbstrp){
-        X_lp_valid_tmp <- NULL
-        Y_lp_valid_tmp <- NULL
-        X_lp_invalid_tmp <- NULL
-        Y_lp_invalid_tmp <- NULL
+    covar_valid_b <- NULL
+    covar_invalid_b <- NULL
 
-        Y_valid_tmp <- NULL
-        X_valid_tmp <- NULL
-        Y_invalid_tmp <- NULL
-        X_invalid_tmp <- NULL
-        for (i in 1:length(preds_HT_lp$lp_X[[b]][[varstr_X]])){
-          #Y_maxes <- NULL
-          #for (m in length(varstr_Y)){
-          #  Y_maxes[[m]] <- max(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]][i])
-          #}
-          thr <- models_maxds[[b]][[varstr_X]][[n]]$thr
-          thr_val <- quantile(models_maxds[[b]][[varstr_X]][[n]]$X_fit,thr)
-          if (preds_HT_lp$lp_X[[b]][[varstr_X]][i]>thr_val){
-            X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
-            Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
-            Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
-            X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
-          } else{
-            X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
-            Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
-            Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
-            X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
-          }
-        }
-        X_lp_valid_b[[b]] <- X_lp_valid_tmp
-        Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
-        X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
-        Y_lp_invalid_b[[b]] <- Y_lp_invalid_tmp
-
-        Y_valid_b[[b]] <- Y_valid_tmp
-        Y_invalid_b[[b]] <- Y_invalid_tmp
-        X_valid_b[[b]] <- X_valid_tmp
-        X_invalid_b[[b]] <- X_invalid_tmp
+    for (b in 1:nbstrp){
+      lp_Y_maxes <- NULL
+      for (m in length(varstr_Y)){
+        lp_Y_maxes[[m]] <- unlist(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]])
       }
-      X_lp_valid[[n]] <- X_lp_valid_b
-      Y_lp_valid[[n]] <- Y_lp_valid_b
-      X_lp_invalid[[n]] <- X_lp_invalid_b
-      Y_lp_invalid[[n]] <- Y_lp_invalid_b
+      lp_Y_maxes <- unlist(lp_Y_maxes)
 
-      Y_valid[[n]] <- Y_valid_b
-      Y_invalid[[n]] <- Y_invalid_b
-      X_valid[[n]] <- X_valid_b
-      X_invalid[[n]] <- X_invalid_b
-    }
-  }
+      covar_names <- names(preds_HT[[b]]$covar[[n]])
 
-  if (region=="both"){
-    print("Greater than threshold on X & greater than threshold on Y, only valids")
-    for (n in varstr_Y){
-      X_lp_valid_b <- NULL
-      Y_lp_valid_b <- NULL
-      X_lp_invalid_b <- NULL
-      Y_lp_invalid_b <- NULL
+      X_lp_valid_tmp <- preds_HT_lp$lp_X[[b]][[varstr_X]]
+      Y_lp_valid_tmp <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]]
+      X_lp_invalid_tmp <- NULL
+      Y_lp_invalid_tmp <- NULL
 
-      Y_valid_b <- NULL
-      Y_invalid_b <- NULL
-      X_valid_b <- NULL
-      X_invalid_b <- NULL
-      for (b in 1:nbstrp){
-        X_lp_valid_tmp <- NULL
-        Y_lp_valid_tmp <- NULL
-        X_lp_invalid_tmp <- NULL
-        Y_lp_invalid_tmp <- NULL
+      Y_valid_tmp <- preds_HT[[b]][[varstr_X]][[n]]
+      X_valid_tmp <- preds_margs[[b]][[varstr_X]]$maxval
+      Y_invalid_tmp <- NULL
+      X_invalid_tmp <- NULL
 
-        Y_valid_tmp <- NULL
-        X_valid_tmp <- NULL
-        Y_invalid_tmp <- NULL
-        X_invalid_tmp <- NULL
-        for (i in 1:length(preds_HT_lp$lp_X[[b]][[varstr_X]])){
-          Y_maxes <- NULL
-          for (m in length(varstr_Y)){
-            Y_maxes[[m]] <- max(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]][i])
-          }
-          thr_x <- models_maxds[[b]][[varstr_X]][[n]]$thr
-          thr_val_x <- quantile(models_maxds[[b]][[varstr_X]][[n]]$X_fit,thr_x)
-          thr_y <- models_maxds[[b]][[n]][[varstr_X]]$thr
-          thr_val_y <- quantile(models_maxds[[b]][[n]][[varstr_X]]$X_fit,thr_y)
-          if (preds_HT_lp$lp_X[[b]][[varstr_X]][i]>max(unlist(Y_maxes)) &
-              preds_HT_lp$lp_X[[b]][[varstr_X]][i]>thr_val_x &
-              preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]>thr_val_y){
-              #preds_HT_lp$lp_Y[[b]][[n]][[varstr_X]][i]>thr_val_y){
-              #preds_HT_lp$lp_Y[[b]][[varstr_X]][[varstr_Y]][i]>thr_val_y){
-            X_lp_valid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
-            Y_lp_valid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
-            Y_valid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
-            X_valid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
-          } else{
-            X_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_X[[b]][[varstr_X]][i]
-            Y_lp_invalid_tmp[[i]] <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]][i]
-            Y_invalid_tmp[[i]] <- preds_HT[[b]][[varstr_X]][[n]][i]
-            X_invalid_tmp[[i]] <- preds_margs[[b]][[varstr_X]]$maxval[i]
-          }
-        }
-        X_lp_valid_b[[b]] <- X_lp_valid_tmp
-        Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
-        X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
-        Y_lp_invalid_b[[b]] <- Y_lp_invalid_tmp
-
-        Y_valid_b[[b]] <- Y_valid_tmp
-        Y_invalid_b[[b]] <- Y_invalid_tmp
-        X_valid_b[[b]] <- X_valid_tmp
-        X_invalid_b[[b]] <- X_invalid_tmp
+      covar_valid_tmp <- NULL
+      covar_invalid_tmp <- NULL
+      for (cn in covar_names){
+        covar_valid_tmp[[cn]] <- preds_HT[[b]][['covar']][[n]][[cn]]
       }
-      X_lp_valid[[n]] <- X_lp_valid_b
-      Y_lp_valid[[n]] <- Y_lp_valid_b
-      X_lp_invalid[[n]] <- X_lp_invalid_b
-      Y_lp_invalid[[n]] <- Y_lp_invalid_b
 
-      Y_valid[[n]] <- Y_valid_b
-      Y_invalid[[n]] <- Y_invalid_b
-      X_valid[[n]] <- X_valid_b
-      X_invalid[[n]] <- X_invalid_b
+      X_lp_valid_b[[b]] <- X_lp_valid_tmp
+      Y_lp_valid_b[[b]] <- Y_lp_valid_tmp
+      X_lp_invalid_b[[b]] <- X_lp_invalid_tmp
+      Y_lp_invalid_b[[b]] <- Y_lp_invalid_tmp
+
+      Y_valid_b[[b]] <- Y_valid_tmp
+      Y_invalid_b[[b]] <- Y_invalid_tmp
+      X_valid_b[[b]] <- X_valid_tmp
+      X_invalid_b[[b]] <- X_invalid_tmp
+
+      covar_valid_b[[b]] <- covar_valid_tmp
+      covar_invalid_b[[b]] <- covar_invalid_tmp
     }
-  }
+    X_lp_valid[[n]] <- X_lp_valid_b
+    Y_lp_valid[[n]] <- Y_lp_valid_b
+    X_lp_invalid[[n]] <- X_lp_invalid_b
+    Y_lp_invalid[[n]] <- Y_lp_invalid_b
 
-  return(list('X_valid'=X_valid, 'Y_valid'=Y_valid, 'X_lp_valid'=X_lp_valid, 'Y_lp_valid'=Y_lp_valid))
+    Y_valid[[n]] <- Y_valid_b
+    Y_invalid[[n]] <- Y_invalid_b
+    X_valid[[n]] <- X_valid_b
+    X_invalid[[n]] <- X_invalid_b
+
+    covar_valid[[n]] <- covar_valid_b
+    covar_invalid[[n]] <- covar_invalid_b
+  }
+  return(list('X_valid'=X_valid, 'Y_valid'=Y_valid, 'X_lp_valid'=X_lp_valid, 'Y_lp_valid'=Y_lp_valid, 'covar_valid'=covar_valid))
 }

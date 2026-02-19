@@ -1,5 +1,6 @@
 library(patchwork)
 library(ggplot2)
+library(dplyr)
 
 diagnose_margs_gpd <- function(margs, dfin, var_str="hs", exc_str='exc'){
   #' @export
@@ -62,27 +63,164 @@ diagnose_margs_gpd <- function(margs, dfin, var_str="hs", exc_str='exc'){
   abline(a = 0, b = 1, col = "gray", lwd = 2)
 }
 
-diagnose_margs_occ <- function(marg, dfin, nbins, covarlst, nr_of_years,
-                               covar_mins, covar_maxes, cslims=NULL, condition=NULL){
+diagnose_margs_occ_rejection <- function(
+                               marg, dfin, nbins, covarlst,
+                               nr_of_years,
+                               covar_mins,
+                               covar_maxes,
+                               RP=NULL, cslims=NULL,
+                               condition=NULL,
+                               grid_interval=NULL,
+                               plot_ls=TRUE)
+  {
   #' @export
 
+  if (is.null(RP)){
+    RP <- nr_of_years
+  }
   nr_of_events <- dim(dfin)[1]
   dfobs <- dfin[,covarlst]
-  dfcounts <- produce_storm_occurrences(nr_of_events,
-                                        nr_of_years, nr_of_years,
+  dfcounts <- produce_storm_occurrences_rejection(nr_of_events, RP,
+                                        nr_of_years,
+                                        marg,
+                                        covarlst,
+                                        covar_mins, covar_maxes,
+                                        dfin = dfin,
+                                        condition = condition,
+                                        grid_interval = grid_interval)
+
+  # 2D plots
+  if (plot_ls == TRUE){
+    p1 <- ggplot(dfobs, aes(dfobs[[covarlst[1]]], dfobs[[covarlst[2]]])) +
+    geom_bin2d(bins = nbins) +  # bins controls the number of bins
+    scale_fill_gradient(low = "white", high = "blue", limits = cslims) +
+    labs(title = "2D Histogram (data)",
+         x = covarlst[[1]], y = covarlst[[2]])
+
+    p2 <- ggplot(dfcounts, aes(dfcounts[[covarlst[1]]], dfcounts[[covarlst[2]]])) +
+    geom_bin2d(bins = nbins) +  # bins controls the number of bins
+    scale_fill_gradient(low = "white", high = "blue", limits = cslims) +
+    labs(title = "2D Histogram (predicted)",
+         x = covarlst[[1]], y = covarlst[[2]])
+    p1 + p2
+    return(list(p1 + p2, dim(dfcounts)[1]))
+  } else {return(list(dim(dfcounts)[1]))}
+}
+
+diagnose_margs_occ_rejection_bstrp_1D <- function(margs, varstr, nbins, covarlst,
+                                                  nr_of_years,
+                                                  covar_mins,
+                                                  covar_maxes,
+                                                  RP=NULL, cslims=NULL,
+                                                  grid_interval=NULL){
+  #' export
+  #'
+
+  dimlst_rej <- NULL
+  nbstrp <- length(margs)
+  for (b in 1:nbstrp){
+    print(b)
+    tmpres <- diagnose_margs_occ_rejection(margs[[b]]$occ[[varstr]],
+                                           margs[[b]]$gpd[[varstr]]$data,
+                                           nbins,covarlst,nr_of_years,
+                                           covar_mins = covar_mins,
+                                           covar_maxes = covar_maxes,
+                                           cslims = cslims, RP = RP,
+                                           grid_interval = grid_interval)
+    dimlst_rej[[b]] <- tmpres[[2]]
+  }
+
+  occ_from_data <- NULL
+  for(b in 1:nbstrp){occ_from_data[[b]] <- dim(margs[[b]]$gpd[[varstr]]$data)[1]}
+
+  par(mfrow = c(1, 1))
+  ulim_y <- max(density(unlist(occ_from_data))$y)
+  plot(density(unlist(dimlst_rej)),
+       main = "", xlab = "", ylab = "", xaxt='n', yaxt='n',
+       lty=1, col="brown", ylim=c(0,ulim_y))
+  par(new=TRUE)
+  plot(density(unlist(occ_from_data)),
+       main = "", xlab = "", ylab = "",
+       col="orange", lty=1, ylim=c(0,ulim_y))
+  abline(v = mean(unlist(occ_from_data)), col = "orange", lwd = 1, lty = 2)
+  abline(v = mean(unlist(dimlst_rej)), col = "brown", lwd = 1, lty = 1)
+  legend("topright",
+         legend = c("occurrences simulated","occurrences in data"),
+         col = c("brown", "orange"),
+         lty = c(1,3), # line type
+         lwd = 1,        # line width
+         bty = "n")      # box type ("n" = no box)
+}
+
+diagnose_margs_occ_rejection_bstrp_2D <- function(margs, varstr, nbins, covarlst,
+                                                  nr_of_years,
+                                                  covar_mins,
+                                                  covar_maxes,
+                                                  RP=NULL, cslims=NULL,
+                                                  condition=NULL,
+                                                  grid_interval=NULL,
+                                                  plot_ls=TRUE){
+  #' @export
+
+  if (is.null(RP)){
+    RP <- nr_of_years
+  }
+  dfcountslst <- NULL
+  dfobslst <- NULL
+  nbstrp <- length(margs)
+  for (b in 1:nbstrp){
+    dfin <- margs[[b]]$gpd[[varstr]]$data
+    nr_of_events <- dim(dfin)[1]
+    dfobslst[[b]] <- dfin[,covarlst]
+    dfcounts_tmp <- produce_storm_occurrences_rejection(nr_of_events, RP,
+                                                    nr_of_years,
+                                                    margs[[b]]$occ[[varstr]],
+                                                    covarlst,
+                                                    covar_mins, covar_maxes,
+                                                    dfin = dfin,
+                                                    condition = condition,
+                                                    grid_interval = grid_interval)
+    dfcountslst[[b]] <- dfcounts_tmp
+  }
+  dfobs <- bind_rows(dfobslst)
+  dfcounts <- bind_rows(dfcountslst)
+
+  if (plot_ls == TRUE){
+    p1 <- ggplot(dfobs, aes(dfobs[[covarlst[1]]], dfobs[[covarlst[2]]])) +
+      geom_bin2d(bins = nbins) +  # bins controls the number of bins
+      scale_fill_gradient(low = "white", high = "blue", limits = cslims) +
+      labs(title = "2D Histogram (data)",
+           x = covarlst[[1]], y = covarlst[[2]])
+
+    p2 <- ggplot(dfcounts, aes(dfcounts[[covarlst[1]]], dfcounts[[covarlst[2]]])) +
+      geom_bin2d(bins = nbins) +  # bins controls the number of bins
+      scale_fill_gradient(low = "white", high = "blue", limits = cslims) +
+      labs(title = "2D Histogram (predicted)",
+           x = covarlst[[1]], y = covarlst[[2]])
+    p1 + p2
+    return(list(p1 + p2, dim(dfcounts)[1]))
+  } else {return(list(dim(dfcounts)[1]))}
+}
+
+diagnose_margs_occ <- function(marg, dfin, nbins, covarlst,
+                               nr_of_years,
+                               covar_mins,
+                               covar_maxes,
+                               RP=NULL, cslims=NULL,
+                               condition=NULL){
+  #' @export
+
+  if (is.null(RP)){
+    RP <- nr_of_years
+  }
+  nr_of_events <- dim(dfin)[1]
+  dfobs <- dfin[,covarlst]
+  dfcounts <- produce_storm_occurrences(nr_of_events, RP,
+                                        nr_of_years,
                                         marg,
                                         covarlst,
                                         covar_mins, covar_maxes,
                                         condition = condition)
-
-  print(covarlst[1])
-  print(dim(dfcounts))
-
-  #print(c('max predicted counts:', max(dfcounts$counts)))
-
-  #if (is.null(cslims)){
-  #  cslims <- c(0,max(dfcounts$counts))
-  #}
 
   p1 <- ggplot(dfobs, aes(dfobs[[covarlst[1]]], dfobs[[covarlst[2]]])) +
     geom_bin2d(bins = nbins) +  # bins controls the number of bins
@@ -97,8 +235,9 @@ diagnose_margs_occ <- function(marg, dfin, nbins, covarlst, nr_of_years,
          x = covarlst[[1]], y = covarlst[[2]])
 
   p1 + p2
-}
 
+  return(list(p1 + p2, dim(dfcounts)[1]))
+}
 
 diagnose_maxds <- function(models_maxds_lst, X_var_str, Y_var_str, ulim=1.3, llim=-1.3){
   #' @export
@@ -375,4 +514,93 @@ display_joint_densities <- function(preds_maxds,
   #if (is.numeric(Xmax)){
     #panel.abline(v = Xmax, col = "gray", lwd = .5, lty = 1)
   #}
+}
+
+plot_cvres <- function(cvres, limits=NULL, show_errors=NULL){
+  #' Plots the results from the cross-validation procedure
+  #' @export
+  #'
+  # print values of minimum
+  print(c(cvres$thr[cvres$cost$costfct1==min(cvres$cost$costfct1)],
+          cvres$thr[cvres$cost$costfct2==min(cvres$cost$costfct2)],
+          cvres$thr[cvres$cost$costfct3==min(cvres$cost$costfct3)]))
+
+  if (is.null(limits)){
+    # plot mean cost-function
+    par(mfrow = c(1,3))
+    plot(cvres$thr, cvres$cost$costfct1)
+    abline(v=cvres$thr[cvres$cost$costfct1==min(cvres$cost$costfct1)])
+    plot(cvres$thr, cvres$cost$costfct2)
+    abline(v=cvres$thr[cvres$cost$costfct2==min(cvres$cost$costfct2)])
+    plot(cvres$thr, cvres$cost$costfct3)
+    abline(v=cvres$thr[cvres$cost$costfct3==min(cvres$cost$costfct3)])
+
+  } else {
+    # Add the shaded region
+    # Define the polygon coordinates
+    x1 = limits[1]
+    x2 = limits[2]
+    polygon_x <- c(x1, x2, x2, x1)
+    polygon_y <- c(-1000, -1000, 1000, 1000) # Extend to the plot limits vertically
+    # plot mean cost-function
+    par(mfrow = c(1,3))
+    plot(cvres$thr, cvres$cost$costfct1)
+    polygon(polygon_x, polygon_y, col = rgb(0.6, 0.6, 0.6, 0.3), border = NA)
+    abline(v=cvres$thr[cvres$cost$costfct1==min(cvres$cost$costfct1)])
+    plot(cvres$thr, cvres$cost$costfct2)
+    polygon(polygon_x, polygon_y, col = rgb(0.6, 0.6, 0.6, 0.3), border = NA)
+    abline(v=cvres$thr[cvres$cost$costfct2==min(cvres$cost$costfct2)])
+    plot(cvres$thr, cvres$cost$costfct3)
+    polygon(polygon_x, polygon_y, col = rgb(0.6, 0.6, 0.6, 0.3), border = NA)
+    abline(v=cvres$thr[cvres$cost$costfct3==min(cvres$cost$costfct3)])
+  }
+
+  if (!is.null(show_errors)){
+    # plot errors
+    par(mfrow = c(2,2))
+    boxplot(t(cvres$errors$bias),names=cvres$thr, main="BIAS")
+    abline(h=0)
+    boxplot(t(cvres$errors$mae),names=cvres$thr, main="MAE")
+    abline(h=0)
+    boxplot(t(cvres$errors$rse),names=cvres$thr, main="RSE")
+    abline(h=0)
+    boxplot(t(cvres$errors$drse),names=cvres$thr, main="dRSE")
+    abline(h=0)
+  }
+}
+
+visualize_storm_picking <- function(dfin, dfinall=NULL, xstr = 'dt', ystr='hs', sidx=NULL, eidx=NULL){
+  #' function to visualize the outcome of the storm picking procedure
+  #'
+  #' @export
+  #'
+
+  if (is.null(sidx)){sidx <- 1}
+  if (is.null(eidx)){eidx <- length(dfin[[ystr]])}
+
+  if (!is.null(dfinall)){
+    plot(dfinall[[xstr]][sidx:(eidx*3)], dfinall[[ystr]][sidx:(eidx*3)],
+         pch=20, cex=.5,
+         col = adjustcolor("gray", alpha.f = 0.5),
+         xlim=c(dfin$storms[[xstr]][sidx],dfin$storms[[xstr]][eidx]), ylim=c(0,15),
+         xlab = '', ylab = '', xaxt='n', yaxt='n', main = "")  # e.g. all hs from data
+    par(new=TRUE)
+  }
+  plot(dfin$storms[[xstr]][sidx:(eidx*2)], dfin$storms$thr[sidx:(eidx*2)],
+       pch=20, cex=.5,
+       col = adjustcolor("red", alpha.f = 0.5),
+       xlim=c(dfin$storms[[xstr]][sidx],dfin$storms[[xstr]][eidx]), ylim=c(0,15),
+       xlab = '', ylab = '', xaxt='n', yaxt='n', main = "")  # non-stationary local threshold
+  par(new=TRUE)
+  plot(dfin$storms[[xstr]][sidx:(eidx*2)], dfin$storms$exc[sidx:(eidx*2)]+df_pick$storms$thr[sidx:(eidx*2)],
+       pch=20, cex=.5,
+       col = adjustcolor("black", alpha.f = 0.5),
+       xlim=c(dfin$storms[[xstr]][sidx],dfin$storms[[xstr]][eidx]), ylim=c(0,15),
+       xlab = '', ylab = '', xaxt='n', yaxt='n', main = "")  # exceedences
+  par(new=TRUE)
+  plot(dfin$pots[[xstr]][sidx:eidx], dfin$pots[[ystr]][sidx:eidx],
+       pch=1, cex=1.,
+       col = adjustcolor("orange", alpha.f = 0.5),
+       xlim=c(dfin$storms[[xstr]][sidx],dfin$storms[[xstr]][eidx]), ylim=c(0,15),
+       xlab = '', ylab = 'Hs [m]', main = "")  # peaks
 }

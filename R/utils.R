@@ -238,3 +238,219 @@ filter_output <- function(df){
   # filter results dataframe
   return(0)
 }
+
+setup_pp_wts <- function(dfin, varstr_lst, bounds=NULL, res=NULL,
+                         spltype=NULL, nquad=256){
+  #' setting up weights for point process and ppgam
+  #'
+  #' @param dfin input dataframe
+  #' @param varstr_lst list of variables to consider
+  #' @param bounds boundaries for each variable
+  #' @param res resolution for discretizing
+  #' @param spltype for example 'cc', 'cs', ...
+  #' @nquad number of quadrature points
+  #'
+  #' @return list of nodes (contain mids and wts), knots, and nquad
+  #'
+  #' @examples
+  #' setup_pp_res <- setup_pp_wts(data_sub_orig$y, varstr_lst=c('doy','Pdir'),
+  #'                              bounds=list('doy'=c(0,366), 'Pdir'=c(0,360)),
+  #'                              res=c(36,36), spltype=c('cc','cc'), nquad=256)
+  #'
+  #' @export
+  #'
+
+  intervals <- list()
+  llims <- list()
+  mids <- list()
+  breaks <- list()
+  histres <- list()
+  nodes <- list()
+  wts <- list()
+  knots <- list()
+
+  for (i in 1:length(varstr_lst)){
+    intervals[[varstr_lst[i]]] <- seq(bounds[[varstr_lst[i]]][1], bounds[[varstr_lst[i]]][2], length.out = res[i])
+    width <- intervals[[varstr_lst[i]]][2] - intervals[[varstr_lst[i]]][1]
+    mids[[varstr_lst[i]]] <- intervals[[varstr_lst[i]]][1:(length(intervals[[varstr_lst[i]]])-1)] + width/2
+    llims[[varstr_lst[i]]] <- mids[[varstr_lst[i]]]-width/2
+    breaks[[varstr_lst[i]]] <- c(llims[[varstr_lst[i]]], llims[[varstr_lst[i]]][length(llims[[varstr_lst[i]]])]+width)
+
+    if (spltype[i]=='cc'){
+      # if cyclic
+      knots[[varstr_lst[i]]] = c(breaks[[varstr_lst[i]]][1],breaks[[varstr_lst[i]]][length(breaks[[varstr_lst[i]]])])
+    } else {
+      # place knots at breaks or evenly or according to customized locations
+      print('Not yet available')
+    }
+
+    # compute histograms for wts
+    histres[[varstr_lst[i]]] <- hist(dfin[[varstr_lst[i]]], breaks = breaks[[varstr_lst[i]]], plot=FALSE)
+    # compute wts
+    wts[[varstr_lst[i]]] <- histres[[varstr_lst[i]]]$counts/sum(histres[[varstr_lst[i]]]$counts)
+
+    # define nodes
+    nodes[[varstr_lst[i]]] <- cbind(mids[[varstr_lst[i]]], wts[[varstr_lst[i]]])
+  }
+  return(list(nodes=nodes, knots=knots, nquad=nquad))
+}
+
+calc_q <- function(maxvallst, p){
+  #' Calculates the return value estimates with a given probability
+  #' based on exp(-1) or 1-1/T such as q2 (uses A max), q2N (uses AN max),
+  #' q3 (uses A max), q4 (uses AN max).
+  #' - only q2 and q2N are based on averages of realizations of distributions
+  #' of uncertain parameters.
+  #' - q3 and q4 are applied to the combined uncertain distribution.
+  #' For more info see Jonathan et al. (2021).
+  #'
+  #' @export
+  #'
+  for (i in 1:length(maxvallst)){
+    rvs[[i]] <- quantile(unlist(maxvallst[[i]]), p)
+  }
+  return(rvs)
+}
+
+divide_data_into_k <- function(dfin, k){
+  #' divides a dataframe into k datasets
+  #' @param dfin input dataframe
+  #' @param k integer nbumber of k
+  #'
+  #' @return dfout_lst returns a list of dataframes, each with a subset
+  #'
+  #' @export
+  idx <- 1:dim(dfin)[1]
+  chunks <- split(idx, cut(seq_along(idx), k, labels = FALSE))
+  dfout_lst <- NULL
+  for (i in 1:k){
+    dfout_lst[[i]] <- dfin[chunks[[k]],]
+  }
+  return(dfout_lst)
+}
+
+
+cross_validation <- function(dfin, nr_cv, extr_thr_lst, varstr,
+                             model_fml_thr, model_fml_gpd, knots,
+                             tailfrac=.1){
+  #' perform a k-fold cross-validation scheme
+  #'
+  #' @export
+
+  chunked_df <- divide_data_into_k(dfin, nr_cv)
+
+  cv_bias_thr_lst <- NULL
+  cv_mae_thr_lst <- NULL
+  cv_serror_thr_lst <- NULL
+  cv_dserror_thr_lst <- NULL
+  for (j in 1:length(extr_thr_lst)){
+    crossres <- try({
+      extr_thr <- list()
+      extr_thr[[varstr]] <- extr_thr_lst[j]
+      cv_bias_lst <- NULL
+      cv_mae_lst <- NULL
+      cv_error_lst <- NULL
+      cv_serror_lst <- NULL
+      cv_dserror_lst <- NULL
+
+      for (i in 1:nr_cv){
+        print('###')
+        print(c('extr_thr:', extr_thr))
+        print(c('cross-validation step:', i))
+        print('###')
+
+        chunk_train_lst <- NULL
+        for (c in 1:nr_cv){
+          if (c != i){
+            chunk_train_lst[[c]] <- chunked_df[[c]]
+          }
+        }
+        chunk_train_df <- do.call(rbind, chunk_train_lst)
+        chunk_test_df <- chunked_df[[i]]
+
+        margs_thr_orig = NULL
+        if (i==1){
+          margs_thr_orig[[varstr]] <- evgam(model_fml_thr[[varstr]], chunk_train_df,
+                                            family="ald",
+                                            ald.args=list(tau=extr_thr[[varstr]]),
+                                            knots=knots)
+        } else{
+          margs_thr_orig[[varstr]] <- evgam(model_fml_thr[[varstr]], chunk_train_df,
+                                            family="ald",
+                                            ald.args=list(tau=extr_thr[[varstr]]),
+                                            knots=knots,
+                                            sp=margs_thr_orig[[varstr]]$sp)
+        }
+
+        data_sub_orig <- subset_df(margs_thr_orig, thr_str='thr', exc_str='exc')
+
+        margs_gpd_orig <- fit_marginal_models_gpd(dfin = data_sub_orig,
+                                                  model_fml = model_fml_gpd,
+                                                  list_var = varstr,
+                                                  knots = knots)
+
+        df_sorted <- chunk_test_df[order(chunk_test_df[[varstr]], decreasing = TRUE), ][1:as.integer(tailfrac*dim(chunk_test_df)[1]),]
+
+        ### predict explicitly for the left out row ###
+        # predict threshold
+        thr_pred <- predict(margs_thr_orig[[varstr]], newdata = df_sorted, type = "response")$location
+        # predict exceedance
+        gpd_param_preds <- predict(margs_gpd_orig[[varstr]], newdata = df_sorted, type= "response")
+        scales <- gpd_param_preds$scale
+        shapes <- gpd_param_preds$shape
+        gpd_pred <- revd(length(scales), scale = scales, shape = shapes, threshold = thr_pred, type="GP")
+
+        # compute error
+        cv_bias_tmp <- (gpd_pred)-df_sorted[[varstr]]
+        cv_serror_tmp <- ((gpd_pred)-df_sorted[[varstr]])**2
+        cv_bias_lst[[i]] <- mean(unlist(cv_bias_tmp))
+        cv_mae_lst[[i]] <- mean(unlist(abs(cv_bias_tmp)))
+        cv_serror_lst[[i]] <- sqrt(mean(unlist(cv_serror_tmp)))
+        cv_dserror_lst[[i]] <- sqrt((mean(unlist(cv_serror_tmp)))-cv_bias_lst[[i]]**2)
+      }
+      cv_bias_thr_lst[[j]] <- unlist(cv_bias_lst)
+      cv_mae_thr_lst[[j]] <- unlist(cv_mae_lst)
+      cv_serror_thr_lst[[j]] <- unlist(cv_serror_lst)
+      cv_dserror_thr_lst[[j]] <- unlist(cv_dserror_lst)
+    }, silent = TRUE) # Suppress error messages
+    if (inherits(crossres, "try-error")) {
+      cv_bias_thr_lst[[j]] <- NA
+      cv_mae_thr_lst[[j]] <- NA
+      cv_serror_thr_lst[[j]] <- NA
+      cv_dserror_thr_lst[[j]] <- NA
+    }
+  }
+  cv_bias_df <- as.data.frame(do.call(rbind, cv_bias_thr_lst))
+  cv_mae_df <- as.data.frame(do.call(rbind, cv_mae_thr_lst))
+  cv_serror_df <- as.data.frame(do.call(rbind, cv_serror_thr_lst))
+  cv_dserror_df <- as.data.frame(do.call(rbind, cv_dserror_thr_lst))
+
+  cv_mean_bias <- apply(cv_bias_df, 1, mean, na.rm = TRUE)
+  cv_mean_mae <- apply(cv_mae_df, 1, mean, na.rm = TRUE)
+  cv_mean_serror <- apply(cv_serror_df, 1, mean, na.rm = TRUE)
+  cv_mean_dserror <- apply(cv_dserror_df, 1, mean, na.rm = TRUE)
+
+  costfunc1 <- (abs(cv_mean_bias) + cv_mean_serror)
+  costfunc2 <- (abs(cv_mean_bias) + cv_mean_dserror)
+  costfunc3 <- (abs(cv_mean_bias) + cv_mean_mae)
+
+  mask <- !is.na(costfunc1)
+  extr_thr_lst <- extr_thr_lst[!is.na(costfunc1)]
+
+  costfunc1 <- costfunc1[!is.na(costfunc1)]
+  costfunc2 <- costfunc2[!is.na(costfunc2)]
+  costfunc3 <- costfunc3[!is.na(costfunc3)]
+
+  cost <- NULL
+  cost[['costfct1']] <- costfunc1
+  cost[['costfct2']] <- costfunc2
+  cost[['costfct3']] <- costfunc3
+
+  errors <- NULL
+  errors[['bias']] <- cv_bias_df[mask,]
+  errors[['mae']] <- cv_mae_df[mask,]
+  errors[['rse']] <- cv_serror_df[mask,]
+  errors[['drse']] <- cv_dserror_df[mask,]
+
+  return(list('cost'=cost, 'errors'=errors, 'thr'=extr_thr_lst))
+}
