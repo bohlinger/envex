@@ -496,65 +496,6 @@ fit_HT2004 <- function(lp_margs, thr){
   return (maxd)
 }
 
-
-compute_HT2004_parameter_bstrp <- function(dfin,
-                                           model_fml_thr, model_fml_occ, model_fml_gpd,
-                                           maxd_thr_lst, extr_thr,
-                                           thr_str='thr', list_var=NULL,
-                                           margs_thr_orig=NULL,
-                                           margs_gpd_orig=NULL){
-  #' @export
-  #'
-  if (is.null(list_var)){
-    list_var <- names(model_fml_thr)
-  }
-  print(c('Considered variables:',list_var))
-  maxds_vars <- NULL
-  for (n in list_var){
-    maxds_thr <- NULL
-    for (t in 1:length(maxd_thr_lst)){
-      maxds_bstr <- NULL
-      for (i in 1:length(dfin)){
-        ### Fitting marginals ###
-        print(c("variable:",n,"threshold nr:",t,"bootstrap nr:",i))
-        print("fit threshold model")
-        margs_thr <- fit_marginal_models_thr(dfin = dfin[[i]],
-                                             list_var = list_var,
-                                             thr = extr_thr,
-                                             model_fml = model_fml_thr,
-                                             m_params = margs_thr_orig)
-
-        print("subset to pots above threshold")
-        data_sub <- subset_df(margs_thr, thr_str='thr', exc_str='exc')
-
-        print("fit GPD model")
-        margs_gpd <- fit_marginal_models_gpd(dfin = data_sub,
-                                             list_var = list_var,
-                                             model_fml = model_fml_gpd,
-                                             m_params = margs_gpd_orig)
-
-        print("fit occ model")
-        margs_occ <- fit_marginal_models_occ(dfin = data_sub,
-                                             list_var = list_var,
-                                             model_fml = model_fml_occ,
-                                             nr_of_years = nr_of_years)
-
-        probs <- compute_probs(margs_thr, margs_gpd, dfin = dfin[[i]],
-                               list_var = list_var, thr_str = 'thr')[['probs']]
-
-        lp_margs <- compute_lp_margs(probs)
-
-        maxd <- fit_HT2004(lp_margs, thr = maxd_thr_lst[t])
-
-        maxds_bstr[[i]] <- maxd
-      }
-      maxds_thr[[t]] <- maxds_bstr
-    }
-    maxds_vars[[n]] <- maxds_thr
-  }
-  return(maxds_vars)
-}
-
 unfold_maxd_params_bstrp <- function(maxds_vars, X_var_str, Y_var_str,
                                      ulim=.01,llim=.99,cntr=.5){
   #' @export
@@ -657,6 +598,7 @@ fit_margs_bstrp <- function(dfin,
                             knots = NULL,
                             mids = NULL,
                             breaks = NULL,
+                            interval = NULL,
                             nodes = NULL){
   #' @export
   #'
@@ -696,12 +638,21 @@ fit_margs_bstrp <- function(dfin,
                                          m_params = margs_gpd_orig,
                                          knots = knots)
 
-    # define weights (wts) and nodes given knots
+    # define weights (wts) and nodes given knots (mids and breaks)
+    # if wts are not given equal weighting is assumed
     if (is.null(nodes)){
-      histPdir <- hist(data_sub[[list_var[1]]]$Pdir,
-                       breaks = breaks.Pdir, plot=FALSE)
-      wts.Pdir <- histPdir$counts/sum(histPdir$counts)
-      nodes = list(Pdir = cbind(mids.Pdir, wts.Pdir))
+      nodes <- NULL
+      for (n in names(knots)){
+        if (is.null(interval[[n]])){
+          interval[[n]] <- 1
+        }
+        mids <- seq(min(knots[[n]]), max(knots[[n]]), interval[[n]])
+        llims <- mids-interval[[n]]/2
+        breaks <- c(llims, llims[length(llims)]+interval[[n]])
+        tmphist <- hist(data_sub[[list_var[1]]][[n]], breaks = breaks, plot=FALSE)
+        wts <- tmphist$counts/sum(tmphist$counts)
+        nodes[[n]] = cbind(mids, wts)
+      }
     }
 
     print("fit occ model")
@@ -720,6 +671,8 @@ fit_margs_bstrp <- function(dfin,
     margs_tmp[['thr']] <- margs_thr
     margs_tmp[['gpd']] <- margs_gpd
     margs_tmp[['occ']] <- margs_occ
+    margs_tmp[['occ']][['nodes']] <- nodes
+    margs_tmp[['occ']][['knots']] <- knots
     margs_tmp[['probs']] <- probs
 
     margs[[i]] <- margs_tmp
@@ -1094,92 +1047,6 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
   }
   return(preds_lst)
 }
-
-#predict_margs_bstrp <- function(margs, nr_of_years,
-#                                RP, var_lst=NULL, nbstrp=NULL,
-#                                grid_interval=NULL){
-#  #' @export
-#  #'
-#
-#  if (is.null(var_lst)){
-#    var_lst <- names(models$maxds)
-#  }
-#
-#  if (is.null(nbstrp)){
-#    nbstrp <- length(margs)
-#  }
-#
-#  df_max <- data.frame(matrix(ncol = 5, nrow = nbstrp))
-#  colnames(df_max) <- c("maxval", "scale", "shape", "thr", "prob")
-#  df_max_vals <- NULL
-#  for (n in var_lst){
-#    df_max_vals[[n]] <- df_max
-#  }
-
-#  df_covs <- data.frame(matrix(ncol = length(margs[[1]]$thr[[1]]$predictor.names),
-#                               nrow = nbstrp))
-#  colnames(df_covs) <- margs[[1]]$thr[[1]]$predictor.names
-#  df_max_covs <- NULL
-#  for (n in var_lst){
-#    df_max_covs[[n]] <- df_covs
-#  }
-
-#  max_vals <- NULL
-#  for (b in 1:nbstrp){ # number of bootstraps
-#   for (n in 1:length(var_lst)){
-#
-#      # predict from PP: produce storms occurrences at correct rate
-#      print("produce storms")
-
-#      tmp <- margs[[b]]$thr[[n]]$data[[var_lst[n]]] - fitted(margs[[b]]$thr[[var_lst[n]]])$location
-#      nr_of_events <- length(tmp[tmp>0])
-#      rm(tmp)
-#
-#      df_storm_cov <- produce_storm_occurrences_rejection(nr_of_events, RP, nr_of_years,
-#                                                margs[[b]]$occ[[var_lst[n]]],
-#                                                covarstr_lst,
-#                                                covar_mins, covar_maxes,
-#                                                grid_interval = grid_interval)
-#
-#      # predict from ALD
-#      print("predict threshold")
-#      thr <- predict(margs[[b]]$thr[[var_lst[n]]], newdata = df_storm_cov,
-#                     type = "response")$location
-#
-#      # predict from GPD
-#      print("predict exceedences")
-#      gpd_param_sims <- predict(margs[[b]]$gpd[[var_lst[n]]],
-#                                newdata = df_storm_cov, type= "response")
-#      scales <- gpd_param_sims$scale
-#      shapes <- gpd_param_sims$shape
-#      gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
-#                       threshold = thr, type="GP")
-#      max_idx <- which(gpd_sims==max(gpd_sims))
-#
-#      # Save maximum
-#      print("save max and max_idx")
-#      max_val <- gpd_sims[max_idx]
-#      max_scale <- scales[max_idx]
-#      max_shape <- shapes[max_idx]
-#      thr_max <- thr[max_idx]
-#      df_pred <- df_storm_cov[max_idx,]
-#
-#      gpd_prob <- pevd(max_val, scale = max_scale, shape = max_shape, threshold = thr_max,
-#                       type = "GP", lower.tail = TRUE)
-#
-#      # store in output field
-#      df_max_vals[[var_lst[n]]][b,1] <- max_val
-#      df_max_vals[[var_lst[n]]][b,2] <- max_scale
-#      df_max_vals[[var_lst[n]]][b,3] <- max_shape
-#      df_max_vals[[var_lst[n]]][b,4] <- thr_max
-#      df_max_vals[[var_lst[n]]][b,5] <- gpd_prob
-#
-#      # store covariates
-#      df_max_covs[[var_lst[n]]][b,] <- df_pred[1,]
-#    }
-#  }
-#  return(list("max_vals"=df_max_vals, "max_covs"=df_max_covs))
-#}
 
 retrieve_valid_HT_samples_old <- function(preds_HT, preds_HT_lp, preds_margs,
                                       varstr_X, varstr_Y, nbstrp=NULL,

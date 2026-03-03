@@ -7,68 +7,6 @@ library(dplyr)
 library(rlang)
 library(MASS)
 
-produce_storm_occurrences_v0 <- function(nr_of_events, RP,
-                                      nr_of_years,
-                                      model_nr_of_events,
-                                      condition=NULL){
-  #' Produce storm occurrences by producing the appropriate number
-  #' of coinciding covariates, i.e. direction and day of year.
-  #'
-  #' @param nr_of_events nr of events in dataset (integer)
-  #' @param RP return period (RP) (integer)
-  #' @param nr_of_years nr of years the dataset covers (integer)
-  #' @param model_nr_of_events ppgam model object for occurrences given the covariates
-  #' @return df dataset of unfolded set of covariates ready to be used for GPD or other model
-  #'
-  #' @examples
-  #' storms <- produce_storm_occurrences(nr_of_events, RP, model_nr_of_events)
-  #'
-  #' @export
-
-  # simulate storm peaks from poisson
-  print(c('nr_of_events:', nr_of_events))
-  lambda <- nr_of_events*RP
-  nr_of_events_sim <- rpois(1, lambda=lambda)
-
-  rdirs <- runif(nr_of_events_sim, min = 1, max = 360)
-  rdays <- runif(nr_of_events_sim, min = 1, max = 365.25)
-
-  newdf <- data.frame(cbind(rdays, rdirs))
-  colnames(newdf) <- c('doy', 'Pdir')
-  predcounts <- predict(model_nr_of_events, newdata = newdf, type = 'response')
-
-  simcounts <- rpois(length(predcounts), lambda=predcounts)
-  dftmp <- data.frame(counts=simcounts, cov1=rdays, cov2=rdirs)
-
-  print(c("max predicted counts",max(predcounts)))
-  print(c("max simulated counts",max(simcounts)))
-
-  dfcounts_tmp <- subset(dftmp, counts>0)
-  dfcounts_tmp_1 <- subset(dfcounts_tmp, counts==1)
-  dfcounts_tmp_l1 <- subset(dfcounts_tmp, counts>1)
-  if (dim(dfcounts_tmp_l1)[1]>0){
-    dfcounts_1 <- unfold_counts(dfcounts_tmp_l1)
-    dfcounts <- rbind(dfcounts_1,dfcounts_tmp_1[,c('cov1','cov2')])
-  } else {
-    dfcounts <- dfcounts_tmp_1[,c('cov1','cov2')]
-  }
-
-  colnames(dfcounts) <- c('doy', 'Pdir')
-  rm(dftmp)
-
-  # filter according to covariate constraints
-  if (!is.null(condition)){
-    print("filtering for condition:")
-    print(c("  ", condition))
-    condition_expr <- parse_expr(condition)
-    dfcounts <- dfcounts %>% filter(!!condition_expr)
-    nr_of_events_sim <- dim(dfcounts)[1]
-  }
-
-  print(c('nr_of_events_sim:', dim(dfcounts)[1]))
-  return(dfcounts)
-}
-
 # applying Ben's version to data_sub_orig$y
 # rounding function
 round_to_nearest <- function(x,interval,offset) {
@@ -502,7 +440,7 @@ subset_df <- function(margs, thr_str='thr', exc_str='exc'){
 peak_picking <- function(dfin, lst_vars, thr_model_fml,
                          thr=.5, var_str='hs', thr_str='thr',
                          exc_str='exc', time_str='time',
-                         decorrelation_time_scale=2){
+                         decorrelation_time_scale=2, idx=FALSE){
   #' @export
 
   if (is.null(thr_model_fml)){
@@ -533,8 +471,13 @@ peak_picking <- function(dfin, lst_vars, thr_model_fml,
                                    time_str = time_str, exc_var = exc_str)
 
   # 2. check if storm peaks too close, if true combine
-  storm_idx_list <- get_list_of_close_storms(df_pots_orig, var_str, time_str,
-                                             decorrelation_time_scale)
+  if (isTRUE(idx)){
+    storm_idx_list <- get_list_of_close_storms_idx(df_pots_orig, var_str, time_str,
+                                                   decorrelation_time_scale)
+  } else{
+    storm_idx_list <- get_list_of_close_storms(df_pots_orig, var_str, time_str,
+                                               decorrelation_time_scale)
+  }
 
   dfin_labeled_storms <- subset(dfin_labeled_red, dfin_labeled_red$storm_idx>0)
   dfin_labeled_combined <- combine_storms(dfin_labeled_storms, storm_idx_list)
