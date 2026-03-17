@@ -391,9 +391,12 @@ scale_storm <- function(stormTrajHs, stormTrajTm, scaling){
 
   stormTrajHs_scaled <- stormTrajHs * scaling
   stormTrajHsSteep <- compute_steepness(stormTrajHs, stormTrajTm)
-  stormTrajTm_scaled <- compute_tm1_or_tm2_from_steepness(stormTrajHs_scaled,
-                                                          stormTrajHsSteep,
-                                                          g=9.81)
+  stormTrajTm_scaled <- compute_T_from_steepness(stormTrajHs_scaled,
+                                                 stormTrajHsSteep,
+                                                 g=9.81)
+  #stormTrajTm_scaled <- compute_tm1_or_tm2_from_steepness(stormTrajHs_scaled,
+  #                                                        stormTrajHsSteep,
+  #                                                        g=9.81)
   return(list(stormTrajHs_scaled, stormTrajTm_scaled))
 }
 

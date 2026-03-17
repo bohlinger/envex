@@ -19,7 +19,6 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
                                       nr_of_years,
                                       model_nr_of_events,
                                       covarstr_lst,
-                                      covar_mins, covar_maxes,
                                       dfin = dfin,
                                       condition = NULL,
                                       grid_interval = NULL)
@@ -31,10 +30,16 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
   # and hence retrieve the best lambda_max
   covar_grid_sizes <- NULL
   covar_grid <- NULL
-  for (i in 1:length(covarstr_lst)){
-    vargrid <- seq(covar_mins[i], covar_maxes[i], grid_interval[i])
-    covar_grid[[covarstr_lst[i]]] <- vargrid
-    covar_grid_sizes[[covarstr_lst[i]]] <- length(vargrid)
+
+  for (n in covarstr_lst){
+    if (is.null(grid_interval[[n]])){
+      grid_interval <- 1
+    }
+    vargrid <- seq(min(model_nr_of_events$knots[[n]]),
+                   max(model_nr_of_events$knots[[n]]),
+                   grid_interval[[n]])
+    covar_grid[[n]] <- vargrid
+    covar_grid_sizes[[n]] <- length(vargrid)
   }
   nr_of_grid_cells <- prod(unlist(covar_grid_sizes))
   mv_grid <- expand.grid(covar_grid)
@@ -42,8 +47,8 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
   newdf <- as.data.frame(array(NA,dim=c((nr_of_grid_cells),(length(covarstr_lst)+1))))
   colnames(newdf) <- c('counts', covarstr_lst)
 
-  for (i in 1:length(covarstr_lst)){
-    newdf[[covarstr_lst[i]]] <-mv_grid[[covarstr_lst[i]]]
+  for (n in covarstr_lst){
+    newdf[[n]] <-mv_grid[[n]]
   }
   pred_lambdas <- predict(model_nr_of_events, newdata = newdf, type = 'response')
 
@@ -61,7 +66,7 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
   dfobs <- dfin[,covarstr_lst]
 
   samples = NULL
-  if (length(covarstr_lst)==1){
+  if (length(covarstr_lst) == 1){
     samples[[covarstr_lst[1]]] = sample(dfobs, proposal_N, replace = TRUE)
   }
   else if (length(covarstr_lst)>1){
@@ -417,6 +422,8 @@ fit_marginal_models_occ <- function(dfin, model_fml, nr_of_years,
                           knots = knots,
                           nodes = nodes)
     }
+    margs[[n]][['nodes']] <- nodes
+    margs[[n]][['knots']] <- knots
   }
   return (margs)
 }

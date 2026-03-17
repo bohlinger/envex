@@ -1,4 +1,4 @@
-create_settings_object <- function(settings){
+create_settings_object <- function(settings) {
   #' Initialize a settings object to pass to simulate_storm_peaks function
   #'
   #' @param settings list of kwargs
@@ -19,9 +19,9 @@ create_settings_object <- function(settings){
   return(settings)
 }
 
-runif_func <-function(n, min=0, max=1) sample(min:max, n, replace=T)
+runif_func <- function(n, min = 0, max = 1) sample(min:max, n, replace = TRUE)
 
-adjust_dirs_to_start_dir <- function(d, start_dir){
+adjust_dirs_to_start_dir <- function(d, start_dir) {
   #' @export
   #'
   d_new <- (d-start_dir)%%360
@@ -337,6 +337,8 @@ cross_validation <- function(dfin, nr_cv, extr_thr_lst, varstr,
   #'
   #' @export
 
+  mean_sample_size_lst <- NULL
+
   chunked_df <- divide_data_into_k(dfin, nr_cv)
 
   cv_bias_thr_lst <- NULL
@@ -352,6 +354,8 @@ cross_validation <- function(dfin, nr_cv, extr_thr_lst, varstr,
       cv_error_lst <- NULL
       cv_serror_lst <- NULL
       cv_dserror_lst <- NULL
+
+      mean_sample_size_tmp <- NULL
 
       for (i in 1:nr_cv){
         print('###')
@@ -370,11 +374,13 @@ cross_validation <- function(dfin, nr_cv, extr_thr_lst, varstr,
 
         margs_thr_orig = NULL
         if (i==1){
+          print('fit threshold model')
           margs_thr_orig[[varstr]] <- evgam(model_fml_thr[[varstr]], chunk_train_df,
                                             family="ald",
                                             ald.args=list(tau=extr_thr[[varstr]]),
                                             knots=knots)
         } else{
+          print('fit threshold model')
           margs_thr_orig[[varstr]] <- evgam(model_fml_thr[[varstr]], chunk_train_df,
                                             family="ald",
                                             ald.args=list(tau=extr_thr[[varstr]]),
@@ -391,6 +397,7 @@ cross_validation <- function(dfin, nr_cv, extr_thr_lst, varstr,
 
         df_sorted <- chunk_test_df[order(chunk_test_df[[varstr]], decreasing = TRUE), ][1:as.integer(tailfrac*dim(chunk_test_df)[1]),]
 
+        mean_sample_size_tmp[[i]] <- dim(df_sorted)[1]
         ### predict explicitly for the left out row ###
         # predict threshold
         thr_pred <- predict(margs_thr_orig[[varstr]], newdata = df_sorted, type = "response")$location
@@ -412,6 +419,7 @@ cross_validation <- function(dfin, nr_cv, extr_thr_lst, varstr,
       cv_mae_thr_lst[[j]] <- unlist(cv_mae_lst)
       cv_serror_thr_lst[[j]] <- unlist(cv_serror_lst)
       cv_dserror_thr_lst[[j]] <- unlist(cv_dserror_lst)
+      mean_sample_size_lst[[j]] <- mean_sample_size_tmp
     }, silent = TRUE) # Suppress error messages
     if (inherits(crossres, "try-error")) {
       cv_bias_thr_lst[[j]] <- NA
@@ -452,5 +460,7 @@ cross_validation <- function(dfin, nr_cv, extr_thr_lst, varstr,
   errors[['rse']] <- cv_serror_df[mask,]
   errors[['drse']] <- cv_dserror_df[mask,]
 
-  return(list('cost'=cost, 'errors'=errors, 'thr'=extr_thr_lst))
+  mean_sample_size <- mean(unlist(mean_sample_size_lst))
+  return(list('cost'=cost, 'errors'=errors, 'thr'=extr_thr_lst,
+              'mean_sample_size'=mean_sample_size, 'tailfrac'=tailfrac))
 }

@@ -66,8 +66,6 @@ diagnose_margs_gpd <- function(margs, dfin, var_str="hs", exc_str='exc'){
 diagnose_margs_occ_rejection_noplot <- function(
     marg, dfin, nbins, covarlst,
     nr_of_years,
-    covar_mins,
-    covar_maxes,
     RP=NULL, cslims=NULL,
     condition=NULL,
     grid_interval=NULL,
@@ -84,7 +82,6 @@ diagnose_margs_occ_rejection_noplot <- function(
                                                   nr_of_years,
                                                   marg,
                                                   covarlst,
-                                                  covar_mins, covar_maxes,
                                                   dfin = dfin,
                                                   condition = condition,
                                                   grid_interval = grid_interval)
@@ -94,8 +91,6 @@ diagnose_margs_occ_rejection_noplot <- function(
 diagnose_margs_occ_rejection <- function(
                                marg, dfin, nbins, covarlst,
                                nr_of_years,
-                               covar_mins,
-                               covar_maxes,
                                RP=NULL, cslims=NULL,
                                condition=NULL,
                                grid_interval=NULL,
@@ -112,7 +107,6 @@ diagnose_margs_occ_rejection <- function(
                                         nr_of_years,
                                         marg,
                                         covarlst,
-                                        covar_mins, covar_maxes,
                                         dfin = dfin,
                                         condition = condition,
                                         grid_interval = grid_interval)
@@ -137,8 +131,6 @@ diagnose_margs_occ_rejection <- function(
 
 diagnose_margs_occ_rejection_bstrp_1D <- function(margs, varstr, nbins, covarlst,
                                                   nr_of_years,
-                                                  covar_mins,
-                                                  covar_maxes,
                                                   RP=NULL, cslims=NULL,
                                                   grid_interval=NULL){
   #' export
@@ -151,8 +143,6 @@ diagnose_margs_occ_rejection_bstrp_1D <- function(margs, varstr, nbins, covarlst
     tmpres <- diagnose_margs_occ_rejection_noplot(margs[[b]]$occ[[varstr]],
                                            margs[[b]]$gpd[[varstr]]$data,
                                            nbins, covarlst, nr_of_years,
-                                           covar_mins = covar_mins,
-                                           covar_maxes = covar_maxes,
                                            cslims = cslims, RP = RP,
                                            grid_interval = grid_interval)
     dimlst_rej[[b]] <- tmpres
@@ -182,8 +172,6 @@ diagnose_margs_occ_rejection_bstrp_1D <- function(margs, varstr, nbins, covarlst
 
 diagnose_margs_occ_rejection_bstrp_2D <- function(margs, varstr, nbins, covarlst,
                                                   nr_of_years,
-                                                  covar_mins,
-                                                  covar_maxes,
                                                   RP=NULL, cslims=NULL,
                                                   condition=NULL,
                                                   grid_interval=NULL,
@@ -204,7 +192,6 @@ diagnose_margs_occ_rejection_bstrp_2D <- function(margs, varstr, nbins, covarlst
                                                     nr_of_years,
                                                     margs[[b]]$occ[[varstr]],
                                                     covarlst,
-                                                    covar_mins, covar_maxes,
                                                     dfin = dfin,
                                                     condition = condition,
                                                     grid_interval = grid_interval)
