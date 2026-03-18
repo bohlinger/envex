@@ -217,55 +217,60 @@ diagnose_margs_occ_rejection_bstrp_2D <- function(margs, varstr, nbins, covarlst
     }
 }
 
-diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, ulim = 1.4, llim = -1.3) {
+diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, ylim=NULL) {
   #' @export
 
   maxd_params_bstrp <- unfold_maxd_params_bstrp_v2(models_maxds_lst, X_var_str, Y_var_str)
 
+  # Define the parameters, labels, and data columns
+  parameters <- c("alpha", "beta", "mu", "sigma")
+  ylabels <- c("alpha", "beta", "mu", "sigma")
+
+  # Set up a 2x2 plotting layout
   par(mfrow = c(2, 2))
-  plot(maxd_thr, maxd_params_bstrp$alpha_cntr, type = "l", ylim = c(llim, ulim), main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
-  par(new = TRUE)
-  plot(maxd_thr, maxd_params_bstrp$alpha_llim, type = "l", ylim = c(llim, ulim), col = "red",  main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
-  par(new = TRUE)
-  plot(maxd_thr, maxd_params_bstrp$alpha_ulim, type = "l", ylim = c(llim, ulim), col = "red",  main = "", xlab = "maxd threshold quantile", ylab = "alpha")
-  abline(h = 0, col = "gray", lwd = .8, lty = 1)
-  abline(h = 1, col = "gray", lwd = .8, lty = 1)
-  abline(h = -1, col = "gray", lwd = .8, lty = 1)
-  abline(h = .5, col = "gray", lwd = .8, lty = 3)
-  abline(h = -.5, col = "gray", lwd = .8, lty = 3)
 
-  plot(maxd_thr, maxd_params_bstrp$beta_cntr, type = "l", ylim = c(llim, ulim), main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
-  par(new = TRUE)
-  plot(maxd_thr, maxd_params_bstrp$beta_llim, type = "l", ylim = c(llim, ulim), col = "red", main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
-  par(new = TRUE)
-  plot(maxd_thr, maxd_params_bstrp$beta_ulim, type = "l", ylim = c(llim, ulim), col = "red", main = "", xlab = "maxd threshold quantile", ylab = "beta")
-  abline(h = 0, col = "gray", lwd = .8, lty = 1)
-  abline(h = 1, col = "gray", lwd = .8, lty = 1)
-  abline(h = -1, col = "gray", lwd = .8, lty = 1)
-  abline(h = .5, col = "gray", lwd = .8, lty = 3)
-  abline(h = -.5, col = "gray", lwd = .8, lty = 3)
+  # Loop through each parameter and generate the plots
+  for (i in seq_along(parameters)) {
+    param <- parameters[i]
+    ylabel <- ylabels[i]
 
-  plot(maxd_thr, maxd_params_bstrp$mu_cntr, type = "l", ylim = c(llim, ulim), main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
-  par(new = TRUE)
-  plot(maxd_thr, maxd_params_bstrp$mu_llim, type = "l", ylim = c(llim, ulim), col = "red", main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
-  par(new = TRUE)
-  plot(maxd_thr, maxd_params_bstrp$mu_ulim, type = "l", ylim = c(llim, ulim), col = "red", main = "", xlab = "maxd threshold quantile", ylab = "mu")
-  abline(h = 0, col = "gray", lwd = .8, lty = 1)
-  abline(h = 1, col = "gray", lwd = .8, lty = 1)
-  abline(h = -1, col = "gray", lwd = .8, lty = 1)
-  abline(h = .5, col = "gray", lwd = .8, lty = 3)
-  abline(h = -.5, col = "gray", lwd = .8, lty = 3)
+    # Extract the corresponding columns for center, lower, and upper limits
+    p_cntr <- maxd_params_bstrp[[paste0(param, "_cntr")]]
+    p_llim <- maxd_params_bstrp[[paste0(param, "_llim")]]
+    p_ulim <- maxd_params_bstrp[[paste0(param, "_ulim")]]
 
-  plot(maxd_thr, maxd_params_bstrp$sigma_cntr, type = "l", ylim = c(llim, ulim), main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
-  par(new = TRUE)
-  plot(maxd_thr, maxd_params_bstrp$sigma_llim, type = "l", ylim = c(llim, ulim), col = "red", main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
-  par(new = TRUE)
-  plot(maxd_thr, maxd_params_bstrp$sigma_ulim, type = "l", ylim = c(llim, ulim), col = "red", main = "", xlab = "maxd threshold quantile", ylab = "sigma")
-  abline(h = 0, col = "gray", lwd = .8, lty = 1)
-  abline(h = 1, col = "gray", lwd = .8, lty = 1)
-  abline(h = -1, col = "gray", lwd = .8, lty = 1)
-  abline(h = .5, col = "gray", lwd = .8, lty = 3)
-  abline(h = -.5, col = "gray", lwd = .8, lty = 3)
+    # Remove NA values (if any)
+    valid_indices <- complete.cases(p_cntr, p_llim, p_ulim)
+    p_cntr <- p_cntr[valid_indices]
+    p_llim <- p_llim[valid_indices]
+    p_ulim <- p_ulim[valid_indices]
+    maxd_thr_valid <- maxd_thr[valid_indices]
+
+    # Dynamically calculate y-axis range
+    y_range <- range(c(p_cntr, p_llim, p_ulim), na.rm = TRUE)
+    if (is.null(ylim)) {
+      ylim <- c(max(llim, y_range[1]), min(ulim, y_range[2]))
+    }
+
+
+    # Plot the center line
+    plot(maxd_thr_valid, p_cntr, type = "l", ylim = ylim, main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
+    par(new = TRUE)
+
+    # Plot the lower limit
+    plot(maxd_thr_valid, p_llim, type = "l", ylim = ylim, col = "red", main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
+    par(new = TRUE)
+
+    # Plot the upper limit
+    plot(maxd_thr_valid, p_ulim, type = "l", ylim = ylim, col = "red", main = "", xlab = "maxd threshold quantile", ylab = ylabel)
+
+    # Add horizontal reference lines
+    abline(h = 0, col = "gray", lwd = .8, lty = 1)
+    abline(h = 1, col = "gray", lwd = .8, lty = 1)
+    abline(h = -1, col = "gray", lwd = .8, lty = 1)
+    abline(h = .5, col = "gray", lwd = .8, lty = 3)
+    abline(h = -.5, col = "gray", lwd = .8, lty = 3)
+  }
 }
 
 diagnose_maxds_fitted <- function(maxd, X_str, Y_str, nsim) {

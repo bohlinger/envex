@@ -45,80 +45,6 @@ transform_to_laplace <- function(dfin, margs, names_in = NULL,
 ## custom function for random sampling of element
 runif_func <- function(n, min = 1, max = 10) sample(min:max, n, replace = TRUE)
 
-fit_dependence_model_ndim_manual <- function(margs, targetstr,
-                                             covarstr, dqu,
-                                             trace = 0) {
-  #' @export
-  #'
-
-  # if targetstr is NULL then fit HT with all variables despite covariate
-  if (is.null(targetstr)) {
-    varnames <- names(margs)
-  } else {
-    varnames = targetstr
-  }
-
-  # subset dataset according to all thresholds
-
-  # Loop through the conditions
-  df_subset <- margs[[1]]$cov.data
-  for (i in seq_along(varnames)) {
-    # Subset the dataframe based on the current condition
-    df_subset <- df_subset[df_subset[[varnames[i]]] > margs[[varnames[i]]]$threshold, ]
-  }
-  df_natural_scale <- df_subset
-
-  maxd <- NULL
-  for (t in varnames) {
-    if (t != covarstr) {
-      # subset datasets to threshold
-      X_natural_scale <- df_natural_scale[[covarstr]]
-      Y_natural_scale <- df_natural_scale[[t]]
-
-      plot(X_natural_scale, Y_natural_scale)
-
-      # transform to Laplace scale, use gpd above threshold, use ecdf below
-      lp_margins <- transform_to_laplace(df_natural_scale, margs)
-      X_laplace_scale <- lp_margins[[covarstr]]
-      Y_laplace_scale <- lp_margins[[t]]
-
-      plot(X_laplace_scale, Y_laplace_scale)
-
-      # get dependency threshold
-      if (is.null(dqu)) {
-        dependency_threshold <- .5
-        } else {
-          dependency_threshold <- dqu
-      }
-      print("dependency_threshold:")
-      print(quantile(X_laplace_scale, dependency_threshold))
-
-      # get all data above threshold and fit model
-      X_fit_natural <- df_natural_scale[[covarstr]][X_laplace_scale > quantile(X_laplace_scale, dependency_threshold)]
-      Y_fit_natural <- df_natural_scale[[t]][X_laplace_scale > quantile(X_laplace_scale, dependency_threshold)]
-      X_fit <- X_laplace_scale[X_laplace_scale > quantile(X_laplace_scale, dependency_threshold)]
-      Y_fit <- Y_laplace_scale[X_laplace_scale > quantile(X_laplace_scale, dependency_threshold)]
-
-      plot(X_fit, Y_fit)
-
-      # Nelder Mead does return with initial values for parameters
-      o <- optim(c(a = 1, b = 1, m = 1, s = 1), x = X_fit, y = Y_fit,
-                 HT2004_mse, control = list(trace = trace))
-      print("optimized parameters for HT2004 are:")
-      print(o$par)
-
-      # return model
-      maxd[[covarstr]][[t]][["dependence"]][["coefficients"]] <- o$par
-      maxd[[covarstr]][[t]][["dependence"]][["data"]][["X"]] <- X_fit
-      maxd[[covarstr]][[t]][["dependence"]][["data"]][[covarstr]] <- X_fit_natural
-      maxd[[covarstr]][[t]][["dependence"]][["data"]][["Y"]] <- Y_fit
-      maxd[[covarstr]][[t]][["dependence"]][["data"]][[t]] <- Y_fit_natural
-      maxd[[covarstr]][[t]][["margs"]] <- margs
-    }
-  }
-  return(maxd)
-}
-
 compute_Z_from_residuals <- function(maxd, covarstr) {
   #' @export
 
@@ -209,6 +135,16 @@ simulate_from_HT2004 <- function(maxd, pqu, nsim) {
   return(preds)
 }
 
+compute_lp_margs <- function(probs) {
+  #' @export
+  #'
+  lp_margs <- NULL
+  for (n in names(probs)) {
+    lp_margs[[n]] <- qlaplace(probs[[n]])
+  }
+  return(lp_margs)
+}
+
 compute_probs <- function(margs_thr, margs_gpd, dfin = NULL, list_var = NULL,
                           thr_str = "thr", thr_ecdf_gpd_transistion_margin = 0.01) {
   #' @export
@@ -252,16 +188,6 @@ compute_probs <- function(margs_thr, margs_gpd, dfin = NULL, list_var = NULL,
     rm(tmp)
   }
   return(list("probs" = probs, "probs_ecdf" = probs_ecdf, "probs_gpd" = probs_gpd))
-}
-
-compute_lp_margs <- function(probs) {
-  #' @export
-  #'
-  lp_margs <- NULL
-  for (n in names(probs)) {
-    lp_margs[[n]] <- qlaplace(probs[[n]])
-  }
-  return(lp_margs)
 }
 
 fit_HT2004 <- function(lp_margs, thr) {
