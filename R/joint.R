@@ -62,7 +62,7 @@ fit_dependence_model_ndim_manual <- function(margs, targetstr,
 
   # Loop through the conditions
   df_subset <- margs[[1]]$cov.data
-  for (i in 1:length(varnames)) {
+  for (i in seq_along(varnames)) {
     # Subset the dataframe based on the current condition
     df_subset <- df_subset[df_subset[[varnames[i]]] > margs[[varnames[i]]]$threshold, ]
   }
@@ -237,7 +237,7 @@ compute_probs <- function(margs_thr, margs_gpd, dfin = NULL, list_var = NULL,
     shapes <- as.vector(gpd_params$shape)
 
     tmp <- array(0, c(length(shapes))) * NA
-    for (i in 1:length(tmp)) {
+    for (i in seq_along(tmp)) {
       tmp[i] <- margs_thr[[n]]$tau + (1 - margs_thr[[n]]$tau) *
         pgpd(dfin[[n]][i], mu = threshold[i], sigma = scales[i],
              xi = shapes[i], lower.tail = TRUE)
@@ -269,7 +269,7 @@ fit_HT2004 <- function(lp_margs, thr) {
   #'
 
   maxd <- NULL
-  for (i in 1:length(names(lp_margs))) {
+  for (i in seq_along(names(lp_margs))) {
     list_of_vars <- names(lp_margs)[-i]
 
     X_fit_str <- names(lp_margs)[i]
@@ -308,13 +308,13 @@ unfold_maxd_params_bstrp <- function(maxds_vars, X_var_str, Y_var_str,
   betas_llim <- array(0, c(length(maxds_vars[[X_var_str]]))) * NA
   betas_ulim <- array(0, c(length(maxds_vars[[X_var_str]]))) * NA
 
-  for (t in 1:length(maxds_vars[[X_var_str]])) {
+  for (t in seq_along(maxds_vars[[X_var_str]])) {
     alphas <- array(0, c(length(maxds_vars[[X_var_str]][[1]]))) * NA
     betas <- array(0, c(length(maxds_vars[[X_var_str]][[1]]))) * NA
-    for (i in 1:length(alphas)) {
+    for (i in seq_along(alphas)) {
       alphas[i] <- as.numeric(maxds_vars[[X_var_str]][[t]][[i]][[X_var_str]][[Y_var_str]]$params$par[1])
     }
-    for (i in 1:length(betas)) {
+    for (i in seq_along(betas)) {
       betas[i] <- as.numeric(maxds_vars[[X_var_str]][[t]][[i]][[X_var_str]][[Y_var_str]]$params$par[2])
     }
 
@@ -331,54 +331,54 @@ unfold_maxd_params_bstrp <- function(maxds_vars, X_var_str, Y_var_str,
               "betas_cntr" = betas_cntr, "betas_ulim" = betas_ulim))
 }
 
-unfold_maxd_params_bstrp_v2 <- function(maxds_vars, X_var_str, Y_var_str,
+unfold_maxd_params_bstrp_v2 <- function(maxds, X_var_str, Y_var_str,
                                         ulim = .01, llim = .99, cntr = .5) {
   #' @export
   #' models_maxds_thr[[t_maxd]][[b]]$hs$U10
   #'
-  alphas_cntr <- array(0, c(length(maxds_vars))) * NA
-  alphas_llim <- array(0, c(length(maxds_vars))) * NA
-  alphas_ulim <- array(0, c(length(maxds_vars))) * NA
+  alphas_cntr <- array(0, c(length(maxds))) * NA
+  alphas_llim <- array(0, c(length(maxds))) * NA
+  alphas_ulim <- array(0, c(length(maxds))) * NA
 
-  betas_cntr <- array(0, c(length(maxds_vars))) * NA
-  betas_llim <- array(0, c(length(maxds_vars))) * NA
-  betas_ulim <- array(0, c(length(maxds_vars))) * NA
+  betas_cntr <- array(0, c(length(maxds))) * NA
+  betas_llim <- array(0, c(length(maxds))) * NA
+  betas_ulim <- array(0, c(length(maxds))) * NA
 
-  mus_cntr <- array(0, c(length(maxds_vars))) * NA
-  mus_llim <- array(0, c(length(maxds_vars))) * NA
-  mus_ulim <- array(0, c(length(maxds_vars))) * NA
+  mus_cntr <- array(0, c(length(maxds))) * NA
+  mus_llim <- array(0, c(length(maxds))) * NA
+  mus_ulim <- array(0, c(length(maxds))) * NA
 
-  sigmas_cntr <- array(0, c(length(maxds_vars))) * NA
-  sigmas_llim <- array(0, c(length(maxds_vars))) * NA
-  sigmas_ulim <- array(0, c(length(maxds_vars))) * NA
+  sigmas_cntr <- array(0, c(length(maxds))) * NA
+  sigmas_llim <- array(0, c(length(maxds))) * NA
+  sigmas_ulim <- array(0, c(length(maxds))) * NA
 
-  for (t in 1:length(maxds_vars)) {
-    alphas <- array(0, c(length(maxds_vars[[t]]))) * NA
-    betas <- array(0, c(length(maxds_vars[[t]]))) * NA
-    mus <- array(0, c(length(maxds_vars[[t]]))) * NA
-    sigmas <- array(0, c(length(maxds_vars[[t]]))) * NA
-    for (b in 1:length(alphas)) {
-      alphas[b] <- as.numeric(maxds_vars[[t]][[b]][[X_var_str]][[Y_var_str]]$params$par[1])
-      betas[b] <- as.numeric(maxds_vars[[t]][[b]][[X_var_str]][[Y_var_str]]$params$par[2])
-      mus[b] <- as.numeric(maxds_vars[[t]][[b]][[X_var_str]][[Y_var_str]]$params$par[3])
-      sigmas[b] <- as.numeric(maxds_vars[[t]][[b]][[X_var_str]][[Y_var_str]]$params$par[4])
+  for (t in seq_along(maxds)) {
+    alphas <- array(0, c(length(maxds[[t]]))) * NA
+    betas <- array(0, c(length(maxds[[t]]))) * NA
+    mus <- array(0, c(length(maxds[[t]]))) * NA
+    sigmas <- array(0, c(length(maxds[[t]]))) * NA
+    for (b in seq_along(alphas)) {
+      alphas[b] <- as.numeric(maxds[[t]][[b]][[X_var_str]][[Y_var_str]]$params$par[1])
+      betas[b] <- as.numeric(maxds[[t]][[b]][[X_var_str]][[Y_var_str]]$params$par[2])
+      mus[b] <- as.numeric(maxds[[t]][[b]][[X_var_str]][[Y_var_str]]$params$par[3])
+      sigmas[b] <- as.numeric(maxds[[t]][[b]][[X_var_str]][[Y_var_str]]$params$par[4])
     }
 
-    alphas_cntr[t] <- quantile(alphas, cntr)
-    alphas_llim[t] <- quantile(alphas, llim)
-    alphas_ulim[t] <- quantile(alphas, ulim)
+    alphas_cntr[t] <- quantile(alphas, cntr, na.rm=TRUE)
+    alphas_llim[t] <- quantile(alphas, llim, na.rm=TRUE)
+    alphas_ulim[t] <- quantile(alphas, ulim, na.rm=TRUE)
 
-    betas_cntr[t] <- quantile(betas, cntr)
-    betas_llim[t] <- quantile(betas, llim)
-    betas_ulim[t] <- quantile(betas, ulim)
+    betas_cntr[t] <- quantile(betas, cntr, na.rm=TRUE)
+    betas_llim[t] <- quantile(betas, llim, na.rm=TRUE)
+    betas_ulim[t] <- quantile(betas, ulim, na.rm=TRUE)
 
-    mus_cntr[t] <- quantile(mus, cntr)
-    mus_llim[t] <- quantile(mus, llim)
-    mus_ulim[t] <- quantile(mus, ulim)
+    mus_cntr[t] <- quantile(mus, cntr, na.rm=TRUE)
+    mus_llim[t] <- quantile(mus, llim, na.rm=TRUE)
+    mus_ulim[t] <- quantile(mus, ulim, na.rm=TRUE)
 
-    sigmas_cntr[t] <- quantile(sigmas, cntr)
-    sigmas_llim[t] <- quantile(sigmas, llim)
-    sigmas_ulim[t] <- quantile(sigmas, ulim)
+    sigmas_cntr[t] <- quantile(sigmas, cntr, na.rm=TRUE)
+    sigmas_llim[t] <- quantile(sigmas, llim, na.rm=TRUE)
+    sigmas_ulim[t] <- quantile(sigmas, ulim, na.rm=TRUE)
   }
 
   return(list("alpha_llim" = alphas_llim, "alpha_cntr" = alphas_cntr, "alpha_ulim" = alphas_ulim,
@@ -552,7 +552,7 @@ predict_from_HT2004_models <- function(margs, maxds,
     X_lst <- NULL
     covar <- NULL
 
-    for (n in 1:length(var_lst)) {
+    for (n in seq_along(var_lst)) {
       lp_Y_lst_tmp <- NULL
       tmplst <- var_lst[-n]
       lp_X <- qlaplace(preds[[b]][[var_lst[n]]]$prob)
@@ -571,7 +571,7 @@ predict_from_HT2004_models <- function(margs, maxds,
       lp_Y_lst[[var_lst[n]]] <- lp_Y_lst_tmp
       lp_X_lst[[var_lst[n]]] <- lp_X
       X_lst[[var_lst[n]]] <- X_sim
-      for (nc in 1:length(covar_lst)){
+      for (nc in seq_along(covar_lst)){
         covar[[var_lst[n]]][[covar_lst[nc]]] <- preds[[b]][[var_lst[n]]][[covar_lst[nc]]]
       }
     }
@@ -726,7 +726,7 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
   for (b in 1:nbstrp){ # number of bootstraps
     print(c("number of boostraps (predict_margs):", b))
     preds_tmp_lst <- NULL
-    for (n in 1:length(var_lst)){
+    for (n in seq_along(var_lst)){
       dfin <- margs[[b]]$gpd[[var_lst[n]]]$data
       preds <- predict_marg(margs[[b]], nr_of_years, RP,
                             varstr = var_lst[n], nmc = nmc,
