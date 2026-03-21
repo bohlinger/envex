@@ -104,30 +104,6 @@ transform_to_natural <- function(sims, maxd, targetstr) {
   return(Y_natural)
 }
 
-transform_to_natural_ndim <- function(sims, maxd, targetstr, covarstr) {
-  #' @export
-
-  if (targetstr == covarstr) {
-    p_lp <- plaplace(sims$data$simulated$X)
-    p_lp <- p_lp[p_lp < 1]
-    Y_natural <- qevd(p_lp,
-                      scale = exp(maxd[[covarstr]][[1]]$margs[[covarstr]]$results$par[1]),
-                      shape = maxd[[covarstr]][[1]]$margs[[covarstr]]$results$par[2],
-                      threshold = maxd[[covarstr]][[1]]$margs[[covarstr]]$threshold,
-                      type = c("GP"))
-  } else {
-    p_lp <- plaplace(sims$data$simulated$Y[[targetstr]])
-    p_lp <- p_lp[p_lp < 1]
-    Y_natural <- qevd(p_lp,
-                      scale = exp(maxd[[covarstr]][[targetstr]]$margs[[targetstr]]$results$par[1]),
-                      shape = maxd[[covarstr]][[targetstr]]$margs[[targetstr]]$results$par[2],
-                      threshold = maxd[[covarstr]][[targetstr]]$margs[[targetstr]]$threshold,
-                      type = c("GP"))
-  }
-  return(Y_natural)
-}
-
-
 simulate_from_HT2004 <- function(maxd, pqu, nsim) {
   #' @export
   #'
@@ -258,7 +234,7 @@ unfold_maxd_params_bstrp <- function(maxds_vars, X_var_str, Y_var_str,
 }
 
 unfold_maxd_params_bstrp_v2 <- function(maxds, X_var_str, Y_var_str,
-                                        ulim = .01, llim = .99, cntr = .5) {
+                                        llim = .01, ulim = .99, cntr = .5) {
   #' @export
   #' models_maxds_thr[[t_maxd]][[b]]$hs$U10
   #'
@@ -290,21 +266,21 @@ unfold_maxd_params_bstrp_v2 <- function(maxds, X_var_str, Y_var_str,
       sigmas[b] <- as.numeric(maxds[[t]][[b]][[X_var_str]][[Y_var_str]]$params$par[4])
     }
 
-    alphas_cntr[t] <- quantile(alphas, cntr, na.rm=TRUE)
-    alphas_llim[t] <- quantile(alphas, llim, na.rm=TRUE)
-    alphas_ulim[t] <- quantile(alphas, ulim, na.rm=TRUE)
+    alphas_cntr[t] <- quantile(alphas, cntr, na.rm = TRUE)
+    alphas_llim[t] <- quantile(alphas, llim, na.rm = TRUE)
+    alphas_ulim[t] <- quantile(alphas, ulim, na.rm = TRUE)
 
-    betas_cntr[t] <- quantile(betas, cntr, na.rm=TRUE)
-    betas_llim[t] <- quantile(betas, llim, na.rm=TRUE)
-    betas_ulim[t] <- quantile(betas, ulim, na.rm=TRUE)
+    betas_cntr[t] <- quantile(betas, cntr, na.rm = TRUE)
+    betas_llim[t] <- quantile(betas, llim, na.rm = TRUE)
+    betas_ulim[t] <- quantile(betas, ulim, na.rm = TRUE)
 
-    mus_cntr[t] <- quantile(mus, cntr, na.rm=TRUE)
-    mus_llim[t] <- quantile(mus, llim, na.rm=TRUE)
-    mus_ulim[t] <- quantile(mus, ulim, na.rm=TRUE)
+    mus_cntr[t] <- quantile(mus, cntr, na.rm = TRUE)
+    mus_llim[t] <- quantile(mus, llim, na.rm = TRUE)
+    mus_ulim[t] <- quantile(mus, ulim, na.rm = TRUE)
 
-    sigmas_cntr[t] <- quantile(sigmas, cntr, na.rm=TRUE)
-    sigmas_llim[t] <- quantile(sigmas, llim, na.rm=TRUE)
-    sigmas_ulim[t] <- quantile(sigmas, ulim, na.rm=TRUE)
+    sigmas_cntr[t] <- quantile(sigmas, cntr, na.rm = TRUE)
+    sigmas_llim[t] <- quantile(sigmas, llim, na.rm = TRUE)
+    sigmas_ulim[t] <- quantile(sigmas, ulim, na.rm = TRUE)
   }
 
   return(list("alpha_llim" = alphas_llim, "alpha_cntr" = alphas_cntr, "alpha_ulim" = alphas_ulim,
@@ -327,7 +303,8 @@ fit_margs_bstrp <- function(dfin,
                             breaks = NULL,
                             interval = NULL,
                             nodes = NULL,
-                            node_str_lst = NULL) {
+                            node_str_lst = NULL,
+                            family_gpd = 'gpd2') {
   #' @export
   #'
   margs <- NULL
@@ -364,7 +341,8 @@ fit_margs_bstrp <- function(dfin,
                                          list_var = list_var,
                                          model_fml = model_fml_gpd,
                                          m_params = margs_gpd_orig,
-                                         knots = knots)
+                                         knots = knots,
+                                         family = family_gpd)
 
     # define weights (wts) and nodes given knots (mids and breaks)
     # if wts are not given equal weighting is assumed

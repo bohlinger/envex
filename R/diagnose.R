@@ -246,10 +246,9 @@ diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, yli
     p_ulim <- p_ulim[valid_indices]
     maxd_thr_valid <- maxd_thr[valid_indices]
 
-    # Dynamically calculate y-axis range
-    y_range <- range(c(p_cntr, p_llim, p_ulim), na.rm = TRUE)
+    # Set y-axis range
     if (is.null(ylim)) {
-      ylim <- c(max(llim, y_range[1]), min(ulim, y_range[2]))
+      ylim <- c(-1.5, 1.5)
     }
 
 

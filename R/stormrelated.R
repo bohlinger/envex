@@ -436,3 +436,59 @@ bootstrap_storms <- function(dfin, exc_var='exc'){
 
   return(newdf)
 }
+
+#run_bootstrap_storms <- function(df, group_col, n_boot) {
+#
+#  # Pre-compute once outside the loop
+#  unique_groups  <- unique(df[[group_col]])
+#  group_row_idx  <- split(seq_len(nrow(df)), df[[group_col]])
+#
+#  # Pre-allocate results list
+#  boot_samples <- vector("list", n_boot)
+#
+#  for (i in seq_len(n_boot)) {
+#    sampled_groups <- sample(unique_groups, size = length(unique_groups), replace = TRUE)
+#    row_idx        <- unlist(group_row_idx[as.character(sampled_groups)], use.names = FALSE)
+#    boot_samples[[i]] <- df[row_idx, ]
+#  }
+#
+#  return(boot_samples)
+#}
+
+run_bootstrap_storms <- function(df, group_col, n_boot, max_var) {
+
+  # Pre-compute once outside the loop
+  unique_groups <- unique(df[[group_col]])
+  group_row_idx <- split(seq_len(nrow(df)), df[[group_col]])
+
+  # Pre-allocate results lists
+  boot_samples  <- vector("list", n_boot)
+  boot_max      <- vector("list", n_boot)
+
+  for (i in seq_len(n_boot)) {
+    sampled_groups <- sample(unique_groups, size = length(unique_groups), replace = TRUE)
+    row_idx        <- unlist(group_row_idx[as.character(sampled_groups)], use.names = FALSE)
+    boot_df        <- df[row_idx, ]
+
+    # Extract rows corresponding to the max of max_var within each group
+    max_vals <- tapply(boot_df[[max_var]], boot_df[[group_col]], max)
+    max_idx  <- which(boot_df[[max_var]] == max_vals[as.character(boot_df[[group_col]])])
+    boot_max_df <- boot_df[max_idx, ]
+
+    # Identify and remove groups with missing values in max_var
+    groups_with_na <- unique(boot_max_df[[group_col]][is.na(boot_max_df[[max_var]])])
+
+    if (length(groups_with_na) > 0) {
+      boot_max_df <- boot_max_df[!boot_max_df[[group_col]] %in% groups_with_na, ]
+      boot_df     <- boot_df[!boot_df[[group_col]] %in% groups_with_na, ]
+    }
+
+    boot_samples[[i]] <- boot_df
+    boot_max[[i]]     <- boot_max_df
+  }
+
+  return(list(
+    boot_samples = boot_samples,
+    boot_max     = boot_max
+  ))
+}

@@ -349,11 +349,11 @@ peak_picking <- function(dfin, lst_vars, thr_model_fml,
 
 
   if (is.null(thr_model_fml)) {
-    print("apply constant threshold to all data")
+    print("apply constant threshold to data")
     dfin[[thr_str]] <- array(1, length(dfin[[var_str]])) * thr
     dfin[[exc_str]] <- dfin[[var_str]] - dfin[[thr_str]]
   } else {
-    print("apply threshold model to all data")
+    print("apply threshold model to data")
     m_ald <- evgam(thr_model_fml, dfin, family = "ald",
                    ald.args = list(tau = thr), knots = knots)
 
