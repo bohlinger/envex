@@ -31,37 +31,62 @@ define_storms <- function(df, var_str, storm_thr, exc_var='excess'){
   return(df)
 }
 
-label_storms_variable_thr <- function(df, exc_str){
-  #' index all storms, no storms has index 0
+#label_storms_variable_thr <- function(df, exc_str){
+#  #' index all storms, no storms has index 0
+#  #'
+#  #' @param df A dataframe.
+#  #' @param exc_str variable str for exceedance
+#  #' @return df A dataframe.
+#  #'
+#  #' @export
+#
+#  df$storm_idx <- array(0, c(length(df[[exc_str]])))
+#
+#  # detect blocks and index the storms and index all storms between the 0
+#  idx <- 1
+#  for (i in 1:length(df$storm_idx)){
+#    if (df[[exc_str]][i]>0){
+#      if (i>1){
+#        if (df[[exc_str]][(i-1)]<0){
+#          idx <- idx +1
+#        }
+#      }
+#      df$storm_idx[i]<-idx
+#    }
+#  }
+#  return(df)
+#}
+
+label_storms_variable_thr <- function(df, exc_str) {
+  #' Index all storms, no storms have index 0
   #'
   #' @param df A dataframe.
-  #' @param exc_str variable str for exceedance
+  #' @param exc_str Variable string for exceedance.
   #' @return df A dataframe.
-  #'
-  #' @examples
-  #' df_storms <- define_storms(ekofisk[1:2000,], "exc")
   #'
   #' @export
 
-  df$storm_idx <- array(0, c(length(df[[exc_str]])))
+  # Create a logical vector indicating exceedances
+  exceedance <- df[[exc_str]] > 0
 
-  # detect blocks and index the storms and index all storms between the 0
-  idx <- 1
-  for (i in 1:length(df$storm_idx)){
-    if (df[[exc_str]][i]>0){
-      if (i>1){
-        if (df[[exc_str]][(i-1)]<0){
-          idx <- idx +1
-        }
-      }
-      df$storm_idx[i]<-idx
-    }
-  }
+  # Use rle to identify runs of consecutive TRUE values
+  rle_obj <- rle(exceedance)
+
+  # Create a vector of storm indices
+  storm_idx <- rep(0, length(exceedance)) # Initialize with zeros
+
+  # Assign storm indices where exceedance is TRUE
+  storm_ids <- cumsum(rle_obj$values) * rle_obj$values
+  storm_idx <- inverse.rle(list(lengths = rle_obj$lengths, values = storm_ids))
+
+  # Add the storm indices to the dataframe
+  df$storm_idx <- storm_idx
+
   return(df)
 }
 
 find_storm_peaks_and_decluster <- function(df, var_str, time_str,
-                                           min_nr_days=2, exc_var='excess',
+                                           min_nr_days=1, exc_var='excess',
                                            idx_str='storm_idx'){
   #' Decluster storm events by ensuring a minimum time distance to pass between
   #' storm peaks
@@ -100,10 +125,10 @@ find_storm_peaks_and_decluster <- function(df, var_str, time_str,
 
   ## determine idx with a shorter time difference than min_nr_days and disregard them
   ## difference needs to be larger than 0 to not exclude double counts due to bootstrapping
-  idx_tdiff <- which(df_date_diffs$diffs<min_nr_days & df_date_diffs$diffs>0)
+  idx_tdiff <- which(df_date_diffs$diffs<min_nr_days & df_date_diffs$diffs > 0)
   tmp_lst <- list()
   for (idx in idx_tdiff){
-    tmpl <- c(idx,(idx+1))
+    tmpl <- c(idx,(idx + 1))
     # mark the minim to neglect later, only keep maximum of neighboring pots
     tmpidx <- tmpl[which(df_pots_sorted[[var_str]][tmpl] == min(df_pots_sorted[[var_str]][tmpl]))]
     tmp_lst <- append(tmp_lst, tmpidx)}
@@ -136,15 +161,15 @@ find_storm_peaks <- function(dfin, var_str, time_str,
   #'@export
 
   # rm all negative storm_ts ("non-storms")
-  df_non_neg <- subset(dfin,dfin[[exc_var]]>0)
+  df_non_neg <- subset(dfin, dfin[[exc_var]] > 0)
 
   # split according to storm_idx
   newdf_pos_storms <- split(df_non_neg, df_non_neg[[idx_str]])
   df_pots_clustered <- do.call(rbind, lapply(newdf_pos_storms,
-                                             function(x) x[which.max(x[[exc_var]]),]))
+                                             function(x) x[which.max(x[[exc_var]]), ]))
 
   ## sort pots to later check time difference between pots
-  df_pots_sorted <- df_pots_clustered[order(df_pots_clustered[[idx_str]]),]
+  df_pots_sorted <- df_pots_clustered[order(df_pots_clustered[[idx_str]]), ]
   return(df_pots_sorted)
 }
 
@@ -303,69 +328,110 @@ get_list_of_close_storms <- function(dfin, var_str, time_str, min_nr_days){
   return(storm_idx_list)
 }
 
-get_list_of_close_storms_idx <- function(dfin, var_str, time_str, stepsize){
-  #'
-  #' Decluster exceedences to only retain declustered peaks
-  #' where storms are separated by min_nr_days
-  #'
-  #' @param df A dataframe.
-  #' @param var_str string of variable of interest
-  #' @param time_str string of time variable
-  #' @param stepsize minimum number of steps for keeping storms apart
+#get_list_of_close_storms_idx <- function(dfin, var_str, time_str, stepsize){
+#  #'
+#  #' Decluster exceedences to only retain declustered peaks
+#  #' where storms are separated by min_nr_days
+#  #'
+#  #' @param df A dataframe.
+#  #' @param var_str string of variable of interest
+#  #' @param time_str string of time variable
+#  #' @param stepsize minimum number of steps for keeping storms apart
+#  #'
+#  #' @export
+#  #'
+#
+#  # create blocks from which only the respective maximum is retained
+#  date_diffs <- dfin[[time_str]][2:dim(dfin)[1]]-dfin[[time_str]][1:(dim(dfin)[1]-1)]
+#  df_date_diffs <- data.frame(date_diffs)
+#
+#  df_date_diffs <- cbind(df_date_diffs, seq(1,length(date_diffs)))
+#  colnames(df_date_diffs) <- c('diffs','idx')
+#
+#  # define blocks by difference of minimal number of days
+#  mask <- df_date_diffs$diffs >= stepsize
+#  blck_idx <- df_date_diffs$idx[mask]
+#  end_idx <- c(blck_idx,length(dfin[[time_str]]))
+#  start_idx <- c(1,end_idx[1:length(end_idx)-1]+1)
+#
+#  storm_idx_list = NULL
+#  #newdf <- dfin
+#  for (x in 1:length(blck_idx)) {
+#    # create new df of storm peaks with new indices
+#    storm_idx_list[[x]] <- dfin[['storm_idx']][start_idx[x]: end_idx[x]]
+#  }
+#  return(storm_idx_list)
+#}
 
-  #' @return df_pots a data frame of declustered POTs
+get_list_of_close_storms_idx <- function(dfin, var_str, time_str, stepsize) {
   #'
-  #' @examples
-  #' df_pots <- decluster_exceedances(df_data, var_str = "hs",
-  #'                                  time_str = "time", stepsize = 1)
+  #' Decluster exceedances to only retain declustered peaks
+  #' where storms are separated by a minimum number of steps
+  #'
+  #' @param dfin A dataframe.
+  #' @param var_str String of variable of interest (not used in the function but kept for compatibility).
+  #' @param time_str String of time variable.
+  #' @param stepsize Minimum number of steps for keeping storms apart.
+  #' @return A list of storm indices grouped into blocks.
   #'
   #' @export
-  #'
 
-  # create blocks from which only the respective maximum is retained
-  date_diffs <- dfin[[time_str]][2:dim(dfin)[1]]-dfin[[time_str]][1:(dim(dfin)[1]-1)]
-  df_date_diffs <- data.frame(date_diffs)
+  # Calculate the differences in time between consecutive rows
+  date_diffs <- diff(dfin[[time_str]])
 
-  df_date_diffs <- cbind(df_date_diffs, seq(1,length(date_diffs)))
-  colnames(df_date_diffs) <- c('diffs','idx')
+  # Identify the indices where the time difference is greater than or equal to stepsize
+  block_boundaries <- which(date_diffs >= stepsize)
 
-  # define blocks by difference of minimal number of days
-  mask <- df_date_diffs$diffs >= stepsize
-  blck_idx <- df_date_diffs$idx[mask]
-  end_idx <- c(blck_idx,length(dfin[[time_str]]))
-  start_idx <- c(1,end_idx[1:length(end_idx)-1]+1)
+  # Define the start and end indices for each block
+  start_idx <- c(1, block_boundaries + 1)
+  end_idx <- c(block_boundaries, nrow(dfin))
 
-  storm_idx_list = NULL
-  #newdf <- dfin
-  for (x in 1:length(blck_idx)) {
-    # create new df of storm peaks with new indices
-    storm_idx_list[[x]] <- dfin[['storm_idx']][start_idx[x]: end_idx[x]]
-  }
+  # Use mapply to extract the storm indices for each block
+  storm_idx_list <- mapply(function(start, end) {
+    dfin[['storm_idx']][start:end]
+  }, start_idx, end_idx, SIMPLIFY = FALSE)
+
   return(storm_idx_list)
 }
 
-combine_storms <- function(dfin, storm_idx_list, idx_str="storm_idx"){
-  dfnew <- dfin[0,]
-  colnames(dfnew) <- names(dfin)
-  for (i in 1:length(storm_idx_list)){
-    subdf <- subset(dfin,
-                    (dfin[[idx_str]]>=min(storm_idx_list[[i]]) & dfin[[idx_str]]<=max(storm_idx_list[[i]])))
-    subdf[[idx_str]] <- i
-    dfnew <- rbind(dfnew, subdf)
-  }
-  return(dfnew)
-}
+#combine_storms <- function(dfin, storm_idx_list, idx_str="storm_idx"){
+#  dfnew <- dfin[0,]
+#  colnames(dfnew) <- names(dfin)
+#  for (i in 1:length(storm_idx_list)){
+#    subdf <- subset(dfin,
+#                    (dfin[[idx_str]]>=min(storm_idx_list[[i]]) & dfin[[idx_str]]<=max(storm_idx_list[[i]])))
+#    subdf[[idx_str]] <- i
+#    dfnew <- rbind(dfnew, subdf)
+#  }
+#  return(dfnew)
+#}
 
-combine_storms_including_valleys <- function(dfin, storm_idx_list, idx_str="storm_idx"){
-  dfnew <- dfin[0,]
-  colnames(dfnew) <- names(dfin)
-  for (i in 1:length(storm_idx_list)){
-    subdf <- subset(dfin,
-                    (dfin[[idx_str]]>=min(storm_idx_list[[i]]) & dfin[[idx_str]]<=max(storm_idx_list[[i]])))
-    subdf[[idx_str]] <- i
-    dfnew <- rbind(dfnew, subdf)
+combine_storms <- function(dfin, storm_idx_list, idx_str = "storm_idx") {
+  #' Combine storms into a single dataframe with updated storm indices
+  #'
+  #' @param dfin A dataframe.
+  #' @param storm_idx_list A list of storm indices to combine.
+  #' @param idx_str Column name for storm indices.
+  #' @return A dataframe with combined storms and updated indices.
+  #'
+  #' @export
+
+  # Create a vector to store the new storm indices
+  new_storm_idx <- numeric(nrow(dfin))
+
+  # Assign a new storm index for each block in storm_idx_list
+  for (i in seq_along(storm_idx_list)) {
+    storm_indices <- unlist(storm_idx_list[[i]])
+    new_storm_idx[dfin[[idx_str]] %in% storm_indices] <- i
   }
-  return(dfnew)
+
+  # Add the new storm index to the dataframe
+  dfin[[idx_str]] <- new_storm_idx
+
+  # Filter rows that are part of the new storms
+  dfin <- dfin[new_storm_idx > 0, ]
+
+  return(dfin)
 }
 
 declust <- function(x, u, r = 1) {
@@ -437,24 +503,6 @@ bootstrap_storms <- function(dfin, exc_var='exc'){
   return(newdf)
 }
 
-#run_bootstrap_storms <- function(df, group_col, n_boot) {
-#
-#  # Pre-compute once outside the loop
-#  unique_groups  <- unique(df[[group_col]])
-#  group_row_idx  <- split(seq_len(nrow(df)), df[[group_col]])
-#
-#  # Pre-allocate results list
-#  boot_samples <- vector("list", n_boot)
-#
-#  for (i in seq_len(n_boot)) {
-#    sampled_groups <- sample(unique_groups, size = length(unique_groups), replace = TRUE)
-#    row_idx        <- unlist(group_row_idx[as.character(sampled_groups)], use.names = FALSE)
-#    boot_samples[[i]] <- df[row_idx, ]
-#  }
-#
-#  return(boot_samples)
-#}
-
 run_bootstrap_storms <- function(df, group_col, n_boot) {
 
   # Pre-compute once outside the loop
@@ -497,6 +545,8 @@ run_bootstrap_storms_pots <- function(df, group_col, n_boot, max_var) {
     groups_with_na <- unique(boot_max_df[[group_col]][is.na(boot_max_df[[max_var]])])
 
     if (length(groups_with_na) > 0) {
+      print("NA removed for bootstrap nr:")
+      print(i)
       boot_max_df <- boot_max_df[!boot_max_df[[group_col]] %in% groups_with_na, ]
       boot_df     <- boot_df[!boot_df[[group_col]] %in% groups_with_na, ]
     }
@@ -509,4 +559,144 @@ run_bootstrap_storms_pots <- function(df, group_col, n_boot, max_var) {
     boot_samples = boot_samples,
     boot_max     = boot_max
   ))
+}
+
+# total euclidian distance
+total_eucdist_fct <- function(vardists_df){
+  sum_df <- apply(vardists_df,1,sum)
+  sqrt_df <- sqrt(sum_df)
+  return(sqrt_df)
+}
+
+# circular distance
+circ_diff <- function(a, b, L = 360) {
+  ((a - b + L/2) %% L) - L/2
+}
+
+find_idx_closest_storm_peak <- function(sim, hists, idxs, varlst=NULL,
+                                        dist_fct_lst=NULL, dist_circ_L_lst=NULL,
+                                        sidx=1, eidx=10){
+  #' @param simPeakMV multivariate simulated peak of Hs
+  #' @param histPeaksMV multivariate historic peaks of Hs to match
+  #' @param varlst list of matching variables, e.g. hs, s_tm1
+  #' @param sidx start idx
+  #' @param eidx end idx
+  #'
+  #' @return Array of closest storm peak idx
+  #'
+  #' @export
+
+  hists_scaled <- scale(hists)
+  scaled_center <- as.data.frame(t(attr(hists_scaled, "scaled:center")))
+  scaled_scale <- as.data.frame(t(attr(hists_scaled, "scaled:scale")))
+  hists_scaled_df <- as.data.frame(hists_scaled)
+
+  if (is.null(varlst)){
+    varlst <- names(sim)
+  }
+
+  vardists <- NULL
+  for (n in varlst) {
+    sim_scaled <- scale(
+      sim[[n]],
+      center = scaled_center[[n]],
+      scale = scaled_scale[[n]]
+    )
+    if (dist_fct_lst[[n]]=='circ'){
+      L = dist_circ_L_lst[[n]]
+      vardists[[n]] <- circ_diff(hists_scaled_df[[n]], sim_scaled, L = L)**2
+    } else {
+      vardists[[n]] <- (hists_scaled_df[[n]] - sim_scaled)**2
+    }
+  }
+
+  # make dataframe from list
+  vardists_df <- as.data.frame(vardists)
+
+  # Compute Euclidean distances
+  distances <- apply(vardists_df, 1, function(row) {
+    sqrt(sum(row))
+  })
+
+  # create indices
+  idx_SP <- order(distances)[runif_func(1, min=sidx, max=eidx)] # random pick
+
+  return(idx_SP)
+}
+
+find_idx_closest_storm_peaks <- function(simPeaksMV, histPeaksMV, varlst=NULL,
+                                         dist_fct_lst=NULL, dist_circ_L_lst=NULL,
+                                         sidx=1, eidx=10){
+  #' @param simPeakMV multivariate simulated peak of Hs
+  #' @param histPeaksMV multivariate historic peaks of Hs to match
+  #' @param varlst list of matching variables, e.g. hs, s_tm1
+  #' @param sidx start idx
+  #' @param eidx end idx
+  #'
+  #' @return Array of closest storm peak idx
+  #'
+  #' @export
+
+  idx_SP_vec <- NULL
+  for (i in 1:length(simPeaksMV[[varlst[1]]])){
+    simPeakMV <- simPeaksMV[i, ]
+    idx_SP_vec[[i]] <- find_idx_closest_storm_peak(simPeakMV, histPeaksMV,
+                                       idxs = histPeaksMV[['storm_idx']],
+                                       varlst = varlst,
+                                       dist_fct_lst = dist_fct_lst,
+                                       dist_circ_L_lst = dist_circ_L_lst,
+                                       sidx = sidx, eidx = eidx)
+  }
+  return(unlist(idx_SP_vec))
+}
+
+add_angle <- function(a, b, L=360) {
+  (a + b) %% L
+}
+
+anchor_sim_storms <- function(df_joint_pots, df_hist_pots, df_hist_storms, matched_storm_idx){
+  # scale and rotate storms
+
+  var_lst <- c("hs", "tm2", "Pdir", "doy", "storm_idx")
+
+  sim_storm_df <- data.frame(matrix(ncol = 5, nrow = 0))
+  colnames(sim_storm_df) <- var_lst
+
+  hist_storm_df <- data.frame(matrix(ncol = 5, nrow = 0))
+  colnames(hist_storm_df) <- var_lst
+
+  for (i in 1:length(matched_storm_idx)){
+    tmplst <- NULL
+
+    df_pots_filtered <- df_pick$pots[df_pick$pots$storm_idx %in% matched_storm_idx[i], ]
+    df_storms_filtered <- df_pick$storms[df_pick$storms$storm_idx %in% matched_storm_idx[i], ]
+
+    scaling <- get_constant_scaling(df_joint_pots$hs[i], df_pots_filtered$hs)
+    dirdiff <- circ_diff(df_joint_pots$Pdir[i], df_pots_filtered$Pdir)
+
+    rotated_angle <- add_angle(df_storms_filtered$Pdir, dirdiff, L=360)
+    scaled_storm <- scale_storm(df_storms_filtered$hs, df_storms_filtered$tm2, scaling)
+
+    doydiff <- circ_diff(df_joint_pots$doy[i], df_pots_filtered$doy, L=365)
+    adjusted_doy <- add_angle(df_storms_filtered$doy, doydiff, L=365)
+
+    tmplst[['hs']] <- scaled_storm[[1]]
+    tmplst[['tm2']] <- scaled_storm[[2]]
+    tmplst[['Pdir']] <- rotated_angle
+    tmplst[['doy']] <- adjusted_doy
+
+    storm_idx_tmp_array <- array(data = 1, dim = c(length(df_storms_filtered$hs)))
+    tmplst[['storm_idx']] <- storm_idx_tmp_array * matched_storm_idx[i]
+    tmplst[['pseudo_storm_idx']] <- storm_idx_tmp_array * i
+
+    df_tmp <- as.data.frame(tmplst)
+    sim_storm_df <- rbind(sim_storm_df, df_tmp)
+
+    hist_storm <- df_storms_filtered[var_lst]
+    hist_storm["pseudo_storm_idx"] <- storm_idx_tmp_array * i
+    hist_storm["dt"] <- df_storms_filtered$dt
+
+    hist_storm_df <- rbind(hist_storm_df, hist_storm)
+  }
+  return (list(sim_storms = sim_storm_df, hist_storms = hist_storm_df))
 }

@@ -337,36 +337,6 @@ find_idxs_closest_storm_peaks_hs <- function(simPeakHs, histPeaksHs,
   return(order(dists)[sidx:eidx])
 }
 
-find_idx_closest_storm_peaks <- function(simPeaksMV, histPeaksMV, varlst=NULL,
-                                         sidx=1, eidx=10){
-  #' @param simPeaksMV multivariate simulated peak of Hs
-  #' @param histPeaksMV multivariate historic peaks of Hs to match
-  #' @param varlst list of matching variables
-  #' @param sidx start idx
-  #' @param eidx end idx
-  #'
-  #' @return Array of closest storm peak idx
-  #'
-  #' @export
-
-  dists <- NULL
-  if (is.null(varlst)){
-    varlst <- names(simPeaksMV)
-  }
-
-  for (n in 1:length(varlst)) {
-    dists[[varlst[n]]] <- abs(histPeaksMV[[varlst[n]]]-simPeakHs[[varlst[n]]])
-  }
-
-  # multidim Pythagoras
-  sumdist <- sqrt(unlist(dists))/length(unlist(dists))
-
-  distsHs <- abs(histPeaksHs-simPeakHs)
-  distsTm <- abs(histPeaksTm-simPeakTm)
-  dists <- sqrt(distsHs**2+distsTm**2)
-  return(order(dists)[sidx:eidx])
-}
-
 get_constant_scaling <- function(simPeak, histPeaks){
   #' @param simPeak simulated peak
   #' @param histPeaks historic peaks to match

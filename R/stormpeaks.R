@@ -340,7 +340,7 @@ subset_df <- function(margs, thr_str = "thr", exc_str = "exc"){
 }
 
 
-peak_picking <- function(dfin, lst_vars, thr_model_fml,
+peak_picking <- function(dfin, thr_model_fml,
                          thr = .5, var_str = "hs", thr_str = "thr",
                          exc_str = "exc", time_str = "time",
                          decorrelation_time_scale = 2, idx = FALSE,
@@ -361,19 +361,12 @@ peak_picking <- function(dfin, lst_vars, thr_model_fml,
     dfin[[exc_str]] <- dfin[[var_str]] - dfin[[thr_str]]
   }
 
-  # add threshold varstr to list of variable names to be considered
-  lst_vars <- c(lst_vars, thr_str)
-
   print("label storms")
   dfin_labeled <- label_storms_variable_thr(dfin, exc_str = exc_str)
 
-  print("reduce dataset to storms")
-  dfin_labeled_red <- dfin_labeled[lst_vars]
-  colnames(dfin_labeled_red) <- lst_vars
-
   print("combine and relabel storm peaks that are too close")
   # 1. round of peak finding
-  df_pots_orig <- find_storm_peaks(dfin_labeled_red, var_str = var_str,
+  df_pots_orig <- find_storm_peaks(dfin_labeled, var_str = var_str,
                                    time_str = time_str, exc_var = exc_str)
 
   # 2. check if storm peaks too close, if true combine
@@ -385,7 +378,7 @@ peak_picking <- function(dfin, lst_vars, thr_model_fml,
                                                decorrelation_time_scale)
   }
 
-  dfin_labeled_storms <- subset(dfin_labeled_red, dfin_labeled_red$storm_idx > 0)
+  dfin_labeled_storms <- subset(dfin_labeled, dfin_labeled$storm_idx > 0)
   dfin_labeled_combined <- combine_storms(dfin_labeled_storms, storm_idx_list)
 
   # 3. find peaks again for new combined storms

@@ -544,7 +544,9 @@ plot_cvres <- function(cvres, limits = NULL, show_errors = NULL) {
   }
 }
 
-visualize_storm_picking <- function(dfin, dfinall = NULL, xstr = "dt", ystr = "hs", sidx = NULL, eidx = NULL) {
+visualize_storm_picking <- function(dfin, dfinall = NULL, xstr = "dt",
+                                    ystr = "hs", sidx = NULL, eidx = NULL,
+                                    ylim = c(0, 15)) {
   #' function to visualize the outcome of the storm picking procedure
   #'
   #' @export
@@ -561,25 +563,164 @@ visualize_storm_picking <- function(dfin, dfinall = NULL, xstr = "dt", ystr = "h
     plot(dfinall[[xstr]][sidx:(eidx * 3)], dfinall[[ystr]][sidx:(eidx * 3)],
          pch = 20, cex = .5,
          col = adjustcolor("gray", alpha.f = 0.5),
-         xlim = c(dfin$storms[[xstr]][sidx], dfin$storms[[xstr]][eidx]), ylim = c(0, 15),
+         xlim = c(dfin$storms[[xstr]][sidx], dfin$storms[[xstr]][eidx]), ylim = ylim,
          xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")  # e.g. all hs from data
     par(new = TRUE)
   }
   plot(dfin$storms[[xstr]][sidx:(eidx * 2)], dfin$storms$thr[sidx:(eidx * 2)],
        pch = 20, cex = .5,
        col = adjustcolor("red", alpha.f = 0.5),
-       xlim = c(dfin$storms[[xstr]][sidx], dfin$storms[[xstr]][eidx]), ylim = c(0, 15),
+       xlim = c(dfin$storms[[xstr]][sidx], dfin$storms[[xstr]][eidx]), ylim = ylim,
        xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")  # non-stationary local threshold
   par(new = TRUE)
   plot(dfin$storms[[xstr]][sidx:(eidx * 2)], dfin$storms$exc[sidx:(eidx * 2)] + dfin$storms$thr[sidx:(eidx * 2)],
        pch = 20, cex = .5,
        col = adjustcolor("black", alpha.f = 0.5),
-       xlim = c(dfin$storms[[xstr]][sidx], dfin$storms[[xstr]][eidx]), ylim = c(0, 15),
+       xlim = c(dfin$storms[[xstr]][sidx], dfin$storms[[xstr]][eidx]), ylim = ylim,
        xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")  # exceedences
   par(new = TRUE)
   plot(dfin$pots[[xstr]][sidx:eidx], dfin$pots[[ystr]][sidx:eidx],
        pch = 1, cex = 1.,
        col = adjustcolor("orange", alpha.f = 0.5),
-       xlim = c(dfin$storms[[xstr]][sidx], dfin$storms[[xstr]][eidx]), ylim = c(0, 15),
+       xlim = c(dfin$storms[[xstr]][sidx], dfin$storms[[xstr]][eidx]), ylim = ylim,
        xlab = "", ylab = "Hs [m]", main = "")  # peaks
+}
+
+vis_sim_storms <- function(res, xlim=c(0,15), ylim=c(0,25), storm_idx=1){
+
+  df_storm_hist <- res$hist_storms[(res$hist_storms$pseudo_storm_idx==storm_idx), ]
+  df_storm_sim <- res$sim_storms[(res$sim_storms$pseudo_storm_idx==storm_idx), ]
+
+  par(mfrow = c(2, 2))
+  # joint Hs/Tm02
+  plot(res$hist_storms$tm2, res$hist_storms$hs, pch=20, xlim=xlim, ylim=ylim, cex=.3, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n', col='gray')
+  par(new=TRUE)
+  plot(df_storm_hist$tm2, df_storm_hist$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=1, lty=1, lwd=1, xlab='Tm02 [s]', ylab='Hs [s]', main='', col='blue')
+  par(new=TRUE)
+  plot(df_storm_sim$tm2, df_storm_sim$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=1, lty=1, lwd=1, xlab='Tm02 [s]', ylab='Hs [s]', main='', col='red')
+
+  # Ts Hs
+  plot(df_storm_hist$dt, df_storm_hist$hs, xlab='', ylab='Hs [m]', ylim=ylim, main='', type='o', lty=1, pch=20, col="blue")
+  par(new=TRUE)
+  plot(df_storm_hist$dt, df_storm_sim$hs, xlab='', ylab='Hs [m]', ylim=ylim, main='', type='o', lty=1, pch=20, col="red")
+
+  # Polar plot historic
+  max_extent <- max(ylim)
+  magnitudes <- df_storm_hist$hs  # Magnitudes remain unchanged
+  # Rotate angles to align with the oceanographic convention (add 90°) and transofrm to radians
+  angles_rotated <- (90 - df_storm_hist$Pdir) %% 360 * (pi/180)
+  # Convert polar coordinates to Cartesian coordinates
+  x <- magnitudes * cos(angles_rotated)
+  y <- magnitudes * sin(angles_rotated)
+  # Define the plotting limits
+  lims <- c(-max_extent, max_extent)
+  # Plot a reference circle
+  plot(0, 0, xlim = lims, ylim = lims, type = "n", asp = 1, xlab = "Hs [X component]", ylab = "Hs [Y component]", main = "")
+  symbols(0, 0, circles = .1, add = TRUE, inches = FALSE, lty = 2)  # Add a reference circle
+  # Add radial gridlines
+  rad_labels <- seq(0, 2 * pi, length.out = 13)  # 12 evenly spaced angles (30° apart)
+  for (angle in rad_labels) {
+    angle_rotated <- angle + pi / 2  # Rotate the gridlines
+    segments(0, 0, cos(angle_rotated) * max_extent, sin(angle_rotated) * max_extent,
+             lty = 3, col = "gray")
+  }
+  # Add concentric circles
+  for (r in seq(2, max_extent, by = 2)) {
+    symbols(0, 0, circles = r, add = TRUE, inches = FALSE, lty = 1, col = "gray", lwd=.5)
+  }
+  # Add the line plot
+  lines(x, y, col = "blue", lty = 1)
+  # Highlight the first and last points
+  points(x[1], y[1], pch = 19, col = "blue", cex = 1)  # First point
+  points(x[length(x)], y[length(y)], pch = 2, col = "blue", cex = 1)  # Last point
+  # Add degree labels in oceanographic convention
+  label_radius <- max_extent  # Place labels slightly outside the largest magnitude
+  deg_labels <- c(0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330)  # Oceanographic convention
+  rad_labels <- (90 - deg_labels) %% 360 * (pi/180)
+  # Place degree labels
+  text(label_radius * cos(rad_labels), label_radius * sin(rad_labels),
+       labels = deg_labels, col = "red", cex = 0.8)
+
+  # Polar plot simulated
+  magnitudes <- df_storm_sim$hs  # Magnitudes remain unchanged
+  # Rotate angles to align with the oceanographic convention (add 90°) and transofrm to radians
+  angles_rotated <- (90 - df_storm_sim$Pdir) %% 360 * (pi/180)
+  # Convert polar coordinates to Cartesian coordinates
+  x <- magnitudes * cos(angles_rotated)
+  y <- magnitudes * sin(angles_rotated)
+
+  # Add the line plot
+  lines(x, y, col = "red", lty = 1)
+  # Highlight the first and last points
+  points(x[1], y[1], pch = 19, col = "red", cex = 1)  # First point
+  points(x[length(x)], y[length(y)], pch = 2, col = "red", cex = 1)  # Last point
+
+  # Add a legend
+  legend("topleft", legend = c("Hist", "Sim", "Start", "End"),
+         col = c("blue", "red", "grey", "grey"), pch = c(NA, NA, 19, 2), lty = c(1, 1, NA, NA),
+         bg = "white")
+
+  # Ts Tm2
+  plot(df_storm_hist$dt, df_storm_hist$tm2, xlab='', ylab='Tm02 [s]', ylim=xlim, main='', type='o', lty=1, pch=20, col="blue")
+  par(new=TRUE)
+  plot(df_storm_hist$dt, df_storm_sim$tm2, xlab='', ylab='Tm02 [s]', ylim=xlim, main='', type='o', lty=1, pch=20, col="red")
+}
+
+show_sim_pop <- function(res, xlim=c(0,15), ylim=c(0,25), steepness=FALSE){
+  # show population of all simulated RP storms
+  par(mfrow = c(1, 1))
+
+  # joint Hs/Tm02
+  for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
+    indiv_storm <- subset(res$sim_storms, pseudo_storm_idx==i)
+    plot(indiv_storm$tm2, indiv_storm$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=.3, lty=1, lwd=.4, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("red", alpha = 0.1))
+    par(new=TRUE)
+  }
+  plot(res$hist_storms$tm2, res$hist_storms$hs, pch=20, xlim=xlim, ylim=ylim, cex=.3, xlab='Tm02 [s]', ylab='Hs [m]', main='', col = adjustcolor("black", alpha = 0.4) )
+
+  for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
+    indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
+    par(new=TRUE)
+    indiv_peak <- subset(indiv_storm, hs == max(indiv_storm$hs))
+    plot(indiv_peak$tm2, indiv_peak$hs, pch=1, xlim=xlim, ylim=ylim, cex=.5, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("orange", alpha.f = .3))
+  }
+  for (i in 1:length(unique(res$hist_storms$pseudo_storm_idx))){
+    indiv_storm <- subset(res$hist_storms, pseudo_storm_idx == i)
+    par(new=TRUE)
+    indiv_peak <- subset(indiv_storm, hs == max(indiv_storm$hs))
+    plot(indiv_peak$tm2, indiv_peak$hs, pch=20, xlim=xlim, ylim=ylim, cex=.5, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("royalblue", alpha.f = .4))
+  }
+
+  if (steepness == TRUE){
+    # Define the valid domains for each steepness limit function
+    Tz1 <- seq(0.1, 6, 0.1)  # Domain for the first function
+    HS1 <- 1/10 * 9.81 * Tz1^2 / (2 * pi)  # Values for the first function
+
+    Tz2 <- seq(12.1, 20, 0.1)  # Domain for the second function
+    HS2 <- 1/15 * 9.81 * Tz2^2 / (2 * pi)  # Values for the second function
+
+    # Define the range for interpolation between the two domains
+    Tz_interp <- seq(6.1, 12, 0.1)  # Intermediate range for interpolation
+
+    # Interpolate linearly between the two functions
+    HS_interp <- approx(
+      x = c(Tz1[length(Tz1)], Tz2[1]),   # Boundary points for interpolation
+      y = c(HS1[length(HS1)], HS2[1]),  # Corresponding values at the boundaries
+      xout = Tz_interp                  # Points to interpolate
+    )$y
+
+    # Combine all the values
+    Tz_combined <- c(Tz1, Tz_interp, Tz2)  # Combined domain
+    HS_combined <- c(HS1, HS_interp, HS2) # Combined values
+
+    lines(Tz_combined, HS_combined, lty=2)
+  }
+  legend(
+    "topleft",
+    legend = c("all historic storms","sample historic storm peaks","sample simulated storms","sample simulated peaks"),
+    col = c("black", "royalblue", "red", "orange"),
+    pch = c(20, 20, 20, 1),   # markers (only for peaks)
+    lty = c(NA, NA, 1, NA),        # line styles
+    lwd = c(NA, NA, 1, NA)
+  )
 }
