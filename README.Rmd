@@ -7,7 +7,7 @@ output: github_document
 <!-- badges: start -->
 <!-- badges: end -->
 
-EnvEx provides functions to model non-stationary and joint extremes. Examples for a common metocean use case is provided.
+EnvEx provides functions to model non-stationary and joint extremes. Examples for a common metocean use case are provided.
 
 ## Installation
 
@@ -18,19 +18,14 @@ You can install the development version from GitHub with:
 
 ## Example
 
-This is a basic example showing how to use the package.
+This is a basic example showing storm and peak picking.
 
 ```{r message=FALSE, warning=FALSE}
 # If installed:
 library(evgam)
 library(envex)
 
-# If developing locally, you can use:
-# devtools::load_all()
-
 # subset ds_ekofisk to what is needed
-# i.e. variables to be considered: Hs and Tm02
-#      covariates to be considered: Pdir and doy
 
 ds <- df_ekofisk[, c("time", "hs", "wind_speed_10m", "tp", "tm2", "Pdir", "doy", "dt")]
 
@@ -53,13 +48,12 @@ df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
 # additional variables were added, i.e. exc, thr, and storm_idx
 ```
 
-## A Plot Example
+## Plot the resulting storms, storm peaks, and thresholds
 
-```{r fig.width=6, fig.height=4}
-### plotting results ###########################################################
+```{r fig.width=8, fig.height=4}
 visualize_storm_picking(dfin = df_pick, dfinall = ds,
                         xstr = "dt", ystr = "hs",
-                        sidx = 1, eidx = 2500)
+                        sidx = 1, eidx = 3500)
 ```
 
 ## Notes
