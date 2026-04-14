@@ -392,16 +392,19 @@ diagnose_margs_preds_density <- function(margs_preds, varstr,
   }
 
   if (is.null(xlim)) {
-    xlim <- c(min(unlist(maxvals)), max(unlist(maxvals)))
+    xlim <- c(min(unlist(maxvals), na.rm = TRUE),
+              max(unlist(maxvals), na.rm = TRUE))
   }
 
   y_max <- array(dim = length(maxvals))
   for (b in 1:length(y_max)) {
-    y_max[b] <- max(density(maxvals[[b]], bw = bw, n = 512)$y)
+    if (!is.na(maxvals[[b]][1])){
+      y_max[b] <- max(density(maxvals[[b]], bw = bw, n = 512)$y)
+    }
   }
 
   if (is.null(ylim)) {
-    ylim <- c(0, max(y_max))
+    ylim <- c(0, max(y_max, na.rm=TRUE))
   }
 
   if (is.null(bw)) {
@@ -410,28 +413,36 @@ diagnose_margs_preds_density <- function(margs_preds, varstr,
 
   # plot combined density with individual densities
   for (b in n.bstr) {
-    plot(density(maxvals[[b]], bw = bw, n = 512,
-                 from = xlim[1], to = xlim[2]),
-         col = "grey", lwd = .5, xlim = xlim, ylim = ylim,
-         xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")
-    par(new = TRUE)
+    if (!is.na(maxvals[[b]][1])){
+      plot(density(maxvals[[b]], bw = bw, n = 512,
+                   from = xlim[1], to = xlim[2]),
+           col = "grey", lwd = .5, xlim = xlim, ylim = ylim,
+           xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")
+      par(new = TRUE)
+    }
   }
   if (is.null(xlab)) {
     xlab <- varstr
   }
-  plot(density(unlist(maxvals), bw = bw, n = 512,
+
+  plot(density(na.omit(unlist(maxvals)), bw = bw, n = 512,
                from = xlim[1], to = xlim[2]),
        xlim = xlim, ylim = ylim, main = "", xlab = xlab)
 
   # plot density with uncertainty quantiles
   densities <- NULL
   for (b in n.bstr){
-    densities[["d"]][[b]] <- density(maxvals[[b]], bw = bw, n = 512,
-                                     from = xlim[1], to = xlim[2])
-    densities[["x"]][[b]] <- densities[["d"]][[b]]$x
-    densities[["y"]][[b]] <- densities[["d"]][[b]]$y
+    if (!is.na(maxvals[[b]][1])){
+      densities[["d"]][[b]] <- density(maxvals[[b]], bw = bw, n = 512,
+                                       from = xlim[1], to = xlim[2])
+      densities[["x"]][[b]] <- densities[["d"]][[b]]$x
+      densities[["y"]][[b]] <- densities[["d"]][[b]]$y
+    }
   }
-  df_dens <- data.frame(densities$y)
+
+  # filter out empty entries
+  filtered_y <- Filter(function(x) !is.null(x) && length(x) > 0, densities$y)
+  df_dens <- data.frame(filtered_y)
 
   qlow_ts <- apply(df_dens, 1, quantile, qlow)
   qhigh_ts <- apply(df_dens, 1, quantile, qhigh)
@@ -446,12 +457,12 @@ diagnose_margs_preds_density <- function(margs_preds, varstr,
   plot(densities$x[[1]], qmed_ts, xlim = xlim, ylim = ylim, main = "",
        xlab = xlab, ylab = "Density", lty = 3, lwd = .5, type = "l", col = "blue")
   par(new = TRUE)
-  plot(density(unlist(maxvals), bw = bw, n = 512,
+  plot(density(na.omit(unlist(maxvals)), bw = bw, n = 512,
                from = xlim[1], to = xlim[2]),
        xlim = xlim, ylim = ylim, main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
 
   print("summary maxes:")
-  print(summary(unlist(maxvals)))
+  print(summary(na.omit(unlist(maxvals))))
   return(list("maxvals" = maxvals, "densities" = densities))
 }
 
@@ -598,6 +609,10 @@ vis_sim_storms <- function(res, xlim=c(0,15), ylim=c(0,25), storm_idx=1){
   plot(df_storm_hist$tm2, df_storm_hist$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=1, lty=1, lwd=1, xlab='Tm02 [s]', ylab='Hs [s]', main='', col='blue')
   par(new=TRUE)
   plot(df_storm_sim$tm2, df_storm_sim$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=1, lty=1, lwd=1, xlab='Tm02 [s]', ylab='Hs [s]', main='', col='red')
+  # Add a legend
+  legend("topleft", legend = c("All hist", "Traj Hist", "Traj Sim"),
+         col = c("grey", "blue", "red"), pch = c(20, 20, 20), lty = c(NA, 1, 1),
+         bg = "white")
 
   # Ts Hs
   plot(df_storm_hist$dt, df_storm_hist$hs, xlab='', ylab='Hs [m]', ylim=ylim, main='', type='o', lty=1, pch=20, col="blue")

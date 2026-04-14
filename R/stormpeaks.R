@@ -6,7 +6,7 @@ library(dplyr)
 library(rlang)
 library(MASS)
 
-# applying Ben's version to data_sub_orig$y
+# adopted Ben's version to data_sub_orig[[varstr]]
 # rounding function
 round_to_nearest <- function(x, interval, offset) {
   rounded <- (round(x / interval) * interval) + offset
@@ -59,6 +59,9 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
   proposal_N <- rpois(1, nr_of_events * lambda_max * RP)
   print(c("proposal_N:", proposal_N))
 
+  if (proposal_N == 0){
+    print("proposal_N is 0, please consider a lower extreme threshold")
+  }
   # draw random values for each covariate according to their EDF
   # later replaced by rejection sampling to be more general
   dfobs <- dfin[, covarstr_lst]
@@ -77,38 +80,43 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
 
   counts_lst <- NULL
   keep_lst <- NULL
-  for (i in 1:proposal_N) {
-    keep <- new_pred_lambda[i] / lambda_max > runif(1)
-    if (keep == TRUE) {
-      counts_lst[[i]] <- 1
-      keep_lst[[i]] <- TRUE
-    } else {
-      keep_lst[[i]] <- FALSE
+  if (proposal_N > 0) {
+    for (i in 1:proposal_N) {
+      keep <- new_pred_lambda[i] / lambda_max > runif(1)
+      if (keep == TRUE) {
+        counts_lst[[i]] <- 1
+        keep_lst[[i]] <- TRUE
+      } else {
+        keep_lst[[i]] <- FALSE
+      }
     }
-  }
 
-  counts_lst <- unlist(counts_lst)
-  keep_unlist <- unlist(keep_lst)
+    counts_lst <- unlist(counts_lst)
+    keep_unlist <- unlist(keep_lst)
 
-  if (length(covarstr_lst) == 1) {
-    dfcounts <- NULL
-    dfcounts[[covarstr_lst[1]]] <- pred_data[keep_unlist, ]
-    dfcounts <- as.data.frame(dfcounts)
+    if (length(covarstr_lst) == 1) {
+      dfcounts <- NULL
+      dfcounts[[covarstr_lst[1]]] <- pred_data[keep_unlist, ]
+      dfcounts <- as.data.frame(dfcounts)
+    } else {
+      dfcounts <- pred_data[keep_unlist, ]
+      dfcounts$counts <- counts_lst
+    }
+
+    # filter according to covariate constraints
+    if (!is.null(condition)) {
+      print("filtering for condition:")
+      print(c("  ", condition))
+      condition_expr <- parse_expr(condition)
+      dfcounts <- dfcounts %>% filter(!!condition_expr)
+    }
+
+    print(c("nr_of_sims:", dim(dfcounts)[1]))
+
   } else {
-    dfcounts <- pred_data[keep_unlist, ]
-    dfcounts$counts <- counts_lst
+    dfcounts <- numeric()
+    dim(dfcounts) <- c(0, 0)
   }
-
-  # filter according to covariate constraints
-  if (!is.null(condition)) {
-    print("filtering for condition:")
-    print(c("  ", condition))
-    condition_expr <- parse_expr(condition)
-    dfcounts <- dfcounts %>% filter(!!condition_expr)
-  }
-
-  print(c("nr_of_sims:", dim(dfcounts)[1]))
-
   return(dfcounts)
 }
 
@@ -292,6 +300,41 @@ fit_marginal_models_gpd <- function(dfin, model_fml, list_var = NULL,
 fit_marginal_models_occ <- function(dfin, model_fml, nr_of_years,
                                     list_var = NULL, nquad = 48, m_params = NULL,
                                     knots = NULL, nodes = NULL) {
+  #' @export
+  #'
+  margs <- NULL
+  if (is.null(list_var)) {
+    list_var <- names(model_fml)
+  }
+
+  for (n in list_var) {
+    print(c("fit occurrence model for", n))
+
+    if (is.null(m_params)) {
+      margs[[n]] <- ppgam(model_fml[[n]],
+                          data = dfin[[n]],
+                          weights = nr_of_years * dim(dfin[[1]])[1],
+                          nquad = nquad,
+                          knots = knots,
+                          nodes = nodes)
+    } else {
+      margs[[n]] <- ppgam(model_fml[[n]],
+                          data = dfin[[n]],
+                          weights = nr_of_years * dim(dfin[[1]])[1],
+                          sp = m_params[[n]]$sp,
+                          nquad = nquad,
+                          knots = knots,
+                          nodes = nodes)
+    }
+    margs[[n]][["nodes"]] <- nodes
+    margs[[n]][["knots"]] <- knots
+  }
+  return (margs)
+}
+
+fit_marginal_models_pois <- function(dfin, model_fml, nr_of_years,
+                                     list_var = NULL, nquad = 48, m_params = NULL,
+                                     knots = NULL, nodes = NULL) {
   #' @export
   #'
   margs <- NULL

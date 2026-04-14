@@ -575,7 +575,7 @@ circ_diff <- function(a, b, L = 360) {
 
 find_idx_closest_storm_peak <- function(sim, hists, idxs, varlst=NULL,
                                         dist_fct_lst=NULL, dist_circ_L_lst=NULL,
-                                        sidx=1, eidx=10){
+                                        sidx=1, eidx=100){
   #' @param simPeakMV multivariate simulated peak of Hs
   #' @param histPeaksMV multivariate historic peaks of Hs to match
   #' @param varlst list of matching variables, e.g. hs, s_tm1
@@ -626,7 +626,7 @@ find_idx_closest_storm_peak <- function(sim, hists, idxs, varlst=NULL,
 
 find_idx_closest_storm_peaks <- function(simPeaksMV, histPeaksMV, varlst=NULL,
                                          dist_fct_lst=NULL, dist_circ_L_lst=NULL,
-                                         sidx=1, eidx=10){
+                                         sidx=1, eidx=100){
   #' @param simPeakMV multivariate simulated peak of Hs
   #' @param histPeaksMV multivariate historic peaks of Hs to match
   #' @param varlst list of matching variables, e.g. hs, s_tm1

@@ -11,3 +11,7 @@ Encoding: UTF-8
 LazyData: true
 Depends: 
     R (>= 3.5)
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr

@@ -89,7 +89,8 @@ storm_trajectory_Hmax <- function(hs_traj, tm02_traj, tdelta=3600, llim=0,
     print(c('Most likely Hmax:', mode_of_deriv))
     print(c('Expected Hmax:', E_of_deriv))
   }
-  return(list("Hmax_mode"=mode_of_deriv,"Hmax_E"=E_of_deriv,"deriv"=deriv,"x_lst_diff"=x_lst_diff))
+  return(list("Hmax_mode" = mode_of_deriv, "Hmax_E" = E_of_deriv,
+              "deriv" = deriv, "x_lst_diff" = x_lst_diff))
 }
 
 forristall_Hs <- function(Hs,H,a=0.681,b=2.126){
@@ -120,7 +121,7 @@ prevosto_Hs_2nd <- function(Hs,H,a=2.13,b=8.42){
   return(P)
 }
 
-rayleigh_Hs <- function(Hs,H){
+rayleigh_Hs <- function(Hs, H){
 
   #' @param Hs Significant wave height
   #' @param H Individual wave height
@@ -129,7 +130,7 @@ rayleigh_Hs <- function(Hs,H){
   #'
   #' @export
 
-  P <- exp(-(2*H**2/Hs**2))
+  P <- exp(-(2 * H**2 / Hs**2))
   return(P)
 }
 
