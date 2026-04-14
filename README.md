@@ -66,7 +66,7 @@ visualize_storm_picking(dfin = df_pick, dfinall = ds,
 ## Plot the Hs density
 
 ``` r
-par(mfrow = c(3, 1))
+par(mfrow = c(1, 3))
 plot(density(df_pick$pots$hs, bw=.1))
 plot(density(df_pick$storms$hs, bw=.1))
 plot(density(ds_subset$hs, bw=.1))
