@@ -58,10 +58,21 @@ df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
 ``` r
 visualize_storm_picking(dfin = df_pick, dfinall = ds,
                         xstr = "dt", ystr = "hs",
-                        sidx = 1, eidx = 3500)
+                        sidx = 1, eidx = 4200)
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+
+## Plot the Hs density
+
+``` r
+par(mfrow = c(3, 1))
+plot(density(df_pick$pots$hs, bw=.1))
+plot(density(df_pick$storms$hs, bw=.1))
+plot(density(ds_subset$hs, bw=.1))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 ## Notes
 

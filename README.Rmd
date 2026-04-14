@@ -50,11 +50,21 @@ df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
 
 ## Plot the resulting storms, storm peaks, and thresholds
 
-```{r fig.width=8, fig.height=4}
+```{r fig.width=9, fig.height=4}
 visualize_storm_picking(dfin = df_pick, dfinall = ds,
                         xstr = "dt", ystr = "hs",
-                        sidx = 1, eidx = 3500)
+                        sidx = 1, eidx = 4200)
 ```
+
+## Plot the Hs density
+
+```{r fig.width=9, fig.height=4}
+par(mfrow = c(3, 1))
+plot(density(df_pick$pots$hs, bw=.1))
+plot(density(df_pick$storms$hs, bw=.1))
+plot(density(ds_subset$hs, bw=.1))
+```
+
 
 ## Notes
 
