@@ -557,7 +557,7 @@ plot_cvres <- function(cvres, limits = NULL, show_errors = NULL) {
 
 visualize_storm_picking <- function(dfin, dfinall = NULL, xstr = "dt",
                                     ystr = "hs", sidx = NULL, eidx = NULL,
-                                    ylim = c(0, 15)) {
+                                    ylim = c(0, 15), xlab = "", ylab = "Hs [m]") {
   #' function to visualize the outcome of the storm picking procedure
   #'
   #' @export
@@ -594,7 +594,13 @@ visualize_storm_picking <- function(dfin, dfinall = NULL, xstr = "dt",
        pch = 1, cex = 1.,
        col = adjustcolor("orange", alpha.f = 0.5),
        xlim = c(dfin$storms[[xstr]][sidx], dfin$storms[[xstr]][eidx]), ylim = ylim,
-       xlab = "", ylab = "Hs [m]", main = "")  # peaks
+       xlab = xlab, ylab = ylab, main = "")  # peaks
+  legend("topright",
+         legend = c("All data", "Threshold", "Exceedances", "Peaks"),
+         col = c("gray", "red", "black", "orange"),
+         pch = c(20, 20, 20, 1),
+         pt.cex = c(0.5, 0.5, 0.5, 1),
+         bty = "n")
 }
 
 vis_sim_storms <- function(res, xlim=c(0,15), ylim=c(0,25), storm_idx=1){

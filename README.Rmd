@@ -30,8 +30,7 @@ library(envex)
 ds <- df_ekofisk[, c("time", "hs", "wind_speed_10m", "tp", "tm2", "Pdir", "doy", "dt")]
 
 # reduce data for test from 1976-01-01 to 1986-01-01
-# ds_subset <- ds[1:87673,]  # 10 yrs for quicker testing
-ds_subset <- ds  # all yrs
+# ds_sub <- ds[1:87673,]  # 10 yrs for quicker testing
 
 # choose primary variable
 prime_varstr = 'hs'
@@ -42,7 +41,7 @@ formula_string <- paste(prime_varstr, "~ te(doy, Pdir, bs = c('cc', 'cc'), k = n
 peak_picking_thr_model_fml <- as.formula(formula_string)
 
 # decorrelation time scale of 1 day
-df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
+df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
                         decorrelation_time_scale = 1)
 
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -62,35 +61,33 @@ visualize_storm_picking(dfin = df_pick, dfinall = ds,
 par(mfrow = c(1, 3))
 plot(density(df_pick$pots$hs, bw=.1))
 plot(density(df_pick$storms$hs, bw=.1))
-plot(density(ds_subset$hs, bw=.1))
+plot(density(ds$hs, bw=.1))
 ```
 
 ## Apply to an synthetic dataset with one covariate (doy = day of year)
 
-```{r message=FALSE, warning=FALSE}
+```{r message=TRUE, warning=TRUE}
+library(evgam)
+library(envex)
+
 # choose primary variable
 prime_varstr = 'y'
+
+# load data
+ds <- data(ds_subset)
 
 # make formula
 nknots <- c(6)
 formula_string <- paste(prime_varstr, "~ s(doy, bs = c('cc'), k = nknots)")
 peak_picking_thr_model_fml <- as.formula(formula_string)
 
-# (storm_idx needs to be added for labeling storms)
-var_lst <- c('x','y','doy','storm_idx','exc')
 decluster_time_scale <- 24
-df_pick <- peak_picking(ds_subset, var_lst, peak_picking_thr_model_fml,
+df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
                         time_str = 'x', var_str = 'y',
                         decorrelation_time_scale = decluster_time_scale,
                         idx = TRUE)
 ```
 ## Plot the synthetic wave height y
-
-```{r fig.width=9, fig.height=4}
-visualize_storm_picking(dfin = df_pick, dfinall = ds,
-                        xstr = 'x', ystr = 'y',
-                        sidx = 1, eidx = 4200)
-```
 
 ## Notes
 
