@@ -1,3 +1,16 @@
+#' Contains synthetic data
+#'
+#' @format A data frame with 3 variables and 438000 rows:
+#'  \describe{
+#'    \item{x}{hourly-idx}
+#'    \item{doy}{day of year}
+#'    \item{y}{value}
+#'    }
+#' @source {Synthetic data}
+#' @examples
+#' data(ds_subset)
+"ds_subset"
+
 #' Data to showcase modelling of sea state extremes depending smoothly on covariates
 #'
 #' Contains various bulk sea state variables plus time from the Ekofisk oil and gas field
