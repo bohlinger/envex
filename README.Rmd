@@ -68,7 +68,7 @@ plot(density(ds$hs, bw=.1))
 
 ```{r message=FALSE, warning=FALSE}
 # number of bootstrap/resampling steps
-nbstrp <- 2  # e.g. nbstrp = 10 for testing
+nbstrp <- 10  # e.g. nbstrp = 10 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
