@@ -668,8 +668,8 @@ anchor_sim_storms <- function(df_joint_pots, df_hist_pots, df_hist_storms, match
   for (i in 1:length(matched_storm_idx)){
     tmplst <- NULL
 
-    df_pots_filtered <- df_pick$pots[df_pick$pots$storm_idx %in% matched_storm_idx[i], ]
-    df_storms_filtered <- df_pick$storms[df_pick$storms$storm_idx %in% matched_storm_idx[i], ]
+    df_pots_filtered <- df_hist_pots[df_hist_pots$storm_idx %in% matched_storm_idx[i], ]
+    df_storms_filtered <- df_hist_storms[df_hist_storms$storm_idx %in% matched_storm_idx[i], ]
 
     scaling <- get_constant_scaling(df_joint_pots$hs[i], df_pots_filtered$hs)
     dirdiff <- circ_diff(df_joint_pots$Pdir[i], df_pots_filtered$Pdir)

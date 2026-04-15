@@ -86,7 +86,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   1.657   0.000   1.657
+    ##   1.702   0.001   1.703
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -186,7 +186,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.77   13.05   13.77   14.02   14.59   23.63
+    ##   11.50   13.46   14.45   15.98   16.14  113.02
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -290,16 +290,6 @@ df_joint[['Pdir']] <- unlist(dfcovar[['Pdir']])
 ## Plot Joint Distr
 
 ``` r
-library(hexbin)
-h <- hexbin(df_joint)
-counts <- h@count
-formula <- as.formula(paste("tm2", "~", "hs"))
-custom_panel <- function(x, y, ...) {
-  panel.hexbinplot(x, y, ...)
-  panel.abline(v = 7.078289, col = "gray", lwd = 1, lty = 1)
-  panel.abline(h = 9.190518, col = "gray", lwd = 1, lty = 1)
-}
-
 library(ggplot2)
 library(metR)
 specific_levels <- c(0.01,0.05,0.1)
@@ -308,7 +298,7 @@ ggplot() +
   scale_fill_gradient(low = "white", high = "blue") +  # Color gradient
   geom_density_2d(data = df_joint,  aes(x = df_joint$hs, y = df_joint$tm2), color = "red", size = 0.1, breaks = specific_levels) +  # Density lines
   xlim(10, 21) +  # Extent in the x direction
-  ylim(8, 14) +  # Extent in the y direction
+  ylim(5, 14) +  # Extent in the y direction
   labs(title = "HT2004 predictions vs true annual joint maxima",
        x = "Hs [m]",
        y = "Tm2 [s]",
@@ -334,18 +324,61 @@ ggplot() +
     ## Warning: Use of `df_joint$tm2` is discouraged.
     ## ℹ Use `tm2` instead.
 
-    ## Warning: Removed 16 rows containing non-finite outside the scale range
+    ## Warning: Removed 34 rows containing non-finite outside the scale range
     ## (`stat_bin2d()`).
 
-    ## Warning: Removed 16 rows containing non-finite outside the scale range
+    ## Warning: Removed 34 rows containing non-finite outside the scale range
     ## (`stat_density2d()`).
-
-    ## Warning: Removed 2 rows containing missing values or values outside the scale range
-    ## (`geom_tile()`).
 
 ![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ## Simulate storms (matching) given simulated storm peaks
+
+``` r
+df_hist_pots <- df_pick$pots
+df_hist_storms <- df_pick$storms
+
+# add steepness
+df_joint_pots <- df_joint
+df_hist_pots[['s_tm2']] <- compute_steepness(df_hist_pots$hs, df_hist_pots$tm2)
+df_joint_pots[['s_tm2']] <- compute_steepness(df_joint_pots$hs, df_joint_pots$tm2)
+
+dist_fct_lst <- NULL
+dist_fct_lst[['Pdir']] <- 'circ'
+dist_fct_lst[['doy']] <- 'circ'
+dist_fct_lst[['hs']] <- 'euc'
+dist_fct_lst[['tm2']] <- 'euc'
+dist_fct_lst[['s_tm2']] <- 'euc'
+dist_circ_L_lst <- NULL
+dist_circ_L_lst[['Pdir']] <- 360
+dist_circ_L_lst[['doy']] <- 365
+varlst_matching <- c("hs","s_tm2","doy","Pdir")
+
+nr_of_storms <- 100
+
+df_sim_in <- df_joint_pots[varlst_matching][1:nr_of_storms,]
+df_hist_in <- df_hist_pots[c("hs", "s_tm2", "doy" , "Pdir", "tm2", "storm_idx")]
+matched_storm_idx <- find_idx_closest_storm_peaks(df_sim_in, df_hist_in,
+                                                  varlst = varlst_matching,
+                                                  dist_fct_lst = dist_fct_lst,
+                                                  dist_circ_L_lst = dist_circ_L_lst,
+                                                  sidx = 1, eidx = 100)
+
+df_storms_filtered <- df_pick$storms[df_pick$storms$storm_idx %in% matched_storm_idx[1:nr_of_storms], ]
+res <- anchor_sim_storms(df_joint_pots, df_hist_pots, df_hist_storms, matched_storm_idx)
+```
+
+``` r
+vis_sim_storms(res, storm_idx=10, xlim=c(0,13), ylim=c(0,20))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
+``` r
+show_sim_pop(res, xlim=c(0,20), ylim=c(0,40))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
 
 ## Notes
 
