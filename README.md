@@ -28,8 +28,7 @@ library(envex)
 ds <- df_ekofisk[, c("time", "hs", "wind_speed_10m", "tp", "tm2", "Pdir", "doy", "dt")]
 
 # reduce data for test from 1976-01-01 to 1986-01-01
-# ds_subset <- ds[1:87673,]  # 10 yrs for testing
-ds_subset <- ds  # all yrs
+# ds_sub <- ds[1:87673,]  # 10 yrs for quicker testing
 
 # choose primary variable
 prime_varstr = 'hs'
@@ -40,7 +39,7 @@ formula_string <- paste(prime_varstr, "~ te(doy, Pdir, bs = c('cc', 'cc'), k = n
 peak_picking_thr_model_fml <- as.formula(formula_string)
 
 # decorrelation time scale of 1 day
-df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
+df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
                         decorrelation_time_scale = 1)
 ```
 
@@ -69,7 +68,7 @@ visualize_storm_picking(dfin = df_pick, dfinall = ds,
 par(mfrow = c(1, 3))
 plot(density(df_pick$pots$hs, bw=.1))
 plot(density(df_pick$storms$hs, bw=.1))
-plot(density(ds_subset$hs, bw=.1))
+plot(density(ds$hs, bw=.1))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->

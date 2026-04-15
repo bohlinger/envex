@@ -64,31 +64,6 @@ plot(density(df_pick$storms$hs, bw=.1))
 plot(density(ds$hs, bw=.1))
 ```
 
-## Apply to an synthetic dataset with one covariate (doy = day of year)
-
-```{r message=TRUE, warning=TRUE}
-library(evgam)
-library(envex)
-
-# choose primary variable
-prime_varstr = 'y'
-
-# load data
-ds <- data(ds_subset)
-
-# make formula
-nknots <- c(6)
-formula_string <- paste(prime_varstr, "~ s(doy, bs = c('cc'), k = nknots)")
-peak_picking_thr_model_fml <- as.formula(formula_string)
-
-decluster_time_scale <- 24
-df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
-                        time_str = 'x', var_str = 'y',
-                        decorrelation_time_scale = decluster_time_scale,
-                        idx = TRUE)
-```
-## Plot the synthetic wave height y
-
 ## Notes
 
 ## License
