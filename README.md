@@ -28,7 +28,7 @@ library(envex)
 ds <- df_ekofisk[, c("time", "hs", "wind_speed_10m", "tp", "tm2", "Pdir", "doy", "dt")]
 
 # reduce data for test from 1976-01-01 to 1986-01-01
-# ds_sub <- ds[1:87673,]  # 10 yrs for quicker testing
+# ds[1:87673,]  # 10 yrs for quicker testing
 
 # choose primary variable
 prime_varstr = 'hs'
@@ -77,7 +77,7 @@ plot(density(ds$hs, bw=.1))
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 20  # e.g. nbstrp = 20 for testing
+nbstrp <- 10  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -86,7 +86,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   6.903   0.012   6.921
+    ##   3.321   0.000   3.321
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -140,6 +140,7 @@ fml_pp <- ~ te(doy, Pdir, bs = c('cc', 'cc'), k = c(6,8))
 fml_gpd <- list(exc ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")),
                 ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")))
 fml_ald <- hs ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
+fml_ald_tm2 <- tm2 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
 
 model_fml_thr <- NULL
 model_fml_occ <- NULL
@@ -147,201 +148,21 @@ model_fml_gpd <- NULL
 model_fml_thr[['hs']] <- fml_ald
 model_fml_occ[['hs']] <- fml_pp
 model_fml_gpd[['hs']] <- fml_gpd
+model_fml_thr[['tm2']] <- fml_ald_tm2
+model_fml_occ[['tm2']] <- fml_pp
+model_fml_gpd[['tm2']] <- fml_gpd
+
 
 models_margs <- fit_margs_bstrp(bstrp_pots_lst,
                                 model_fml_thr, model_fml_occ, model_fml_gpd,
                                 extr_thr=thr_range, nr_of_years,
                                 thr_str = 'thr',
-                                list_var = prime_varstr,
+                                list_var = c('hs','tm2'),
                                 nbstrp = nbstrp,
                                 nquad = 225,
                                 knots = knots,
                                 node_str_lst = node_str_lst)
 ```
-
-    ## [1] "Considered variables:" "hs"                   
-    ## [1] "number of bootstraps is:" "20"                      
-    ## [1] "bootstrap nr:" "1"            
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "computing weights and creating nodes"
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "2"            
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "3"            
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "4"            
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "5"            
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "6"            
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "7"            
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "8"            
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "9"            
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "10"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "11"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "12"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "13"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "14"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "15"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "16"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "17"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "18"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "19"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"                      
-    ## [1] "bootstrap nr:" "20"           
-    ## [1] "fit threshold model"
-    ## [1] "fit threshold model for" "hs"                     
-    ## [1] "subset to pots above threshold"
-    ## [1] "subset dataset for" "hs"                
-    ## [1] "fit GPD model"
-    ## [1] "fit gpd model for" "hs"               
-    ## [1] "fit occ model"
-    ## [1] "fit occurrence model for" "hs"
 
 ## Simulate 100yr maxima
 
@@ -349,7 +170,8 @@ models_margs <- fit_margs_bstrp(bstrp_pots_lst,
 RP <- 100
 nmc <- 100
 preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
-                                 nmc = nmc, var_lst=c('hs'), nbstrp = nbstrp,
+                                 nmc = nmc, var_lst = c('hs','tm2'),
+                 nbstrp = nbstrp,
                                  covarstr_lst = c('Pdir','doy'),
                                  grid_interval = list('Pdir'=1, 'doy'=1))
 ```
@@ -364,7 +186,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.24   13.28   14.15   14.68   15.38   71.42
+    ##   11.25   13.34   14.52   15.12   16.04   35.88
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -379,6 +201,54 @@ abline(v = rv100_q4, col = "paleturquoise2", lwd = 2)
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
+
+## Compute joint models testing various thresholds
+
+``` r
+# check various thresholds ###
+maxd_thr <- seq(.5,.98,.01)
+models_maxds_thr <- NULL
+for (t in seq_along(maxd_thr)){
+ print(c('## t:', maxd_thr[t]))
+ models_maxds_tmp <- fit_maxds_bstrp(bstrp_pots_lst,
+                                     models_margs,
+                                     maxd_thr[t],
+                                     nbstrp=nbstrp)
+ models_maxds_thr[[t]] <- models_maxds_tmp
+}
+```
+
+``` r
+# diagnose effect of threshold choice
+diagnose_maxds(models_maxds_thr, maxd_thr, 'hs', 'tm2', ylim=c(-1.5, 1.5))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+
+## Choose threshold range from test and sample across
+
+``` r
+maxd_thr_range <- c(.6,.8)
+models_maxds <- fit_maxds_bstrp(bstrp_pots_lst,
+                                models_margs,
+                                maxd_thr,
+                                nbstrp = nbstrp)
+```
+
+# Diagnose by comparing data against nsim HT2004 simulations
+
+``` r
+nsim <- 100
+diagnose_maxds_fitted(models_maxds[[2]], "tm2", "hs", nsim)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-4.png)<!-- -->
+
+``` r
+diagnose_maxds_fitted(models_maxds[[2]], "hs", "tm2", nsim)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->
 
 ## Notes
 
