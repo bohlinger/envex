@@ -73,12 +73,9 @@ plot(density(ds$hs, bw=.1))
 
 ![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
+## Bootstrap the storms
+
 ``` r
-## Model the non-stationary storm peaks
-
-# choose primary variable, should be same as in example_picking.R script
-prime_varstr = 'hs'
-
 # number of bootstrap/resampling steps
 nbstrp <- 100  # e.g. nbstrp = 10 for testing
 
@@ -89,12 +86,16 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  34.958   0.425  35.393
+    ##  34.127   0.409  34.537
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
 bstrp_pots_lst <- res_bstrp$boot_max
+```
 
+## Plot the sampled within storm Hs densities
+
+``` r
 for (b in seq_len(nbstrp-1)) {
   plot(density(bstrp_storms_lst[[b]]$hs, bw=.1), xlim=c(0, 15), ylim=c(0., .5), xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")
   par(new=TRUE)
@@ -102,9 +103,12 @@ for (b in seq_len(nbstrp-1)) {
 plot(density(bstrp_storms_lst[[b+1]]$hs, bw=.1), xlim=c(0,15), ylim=c(0.,.5), main = "", xlab = "Hs", ylab = "Density")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+## Plot the sampled storm peak Hs densities
 
 ``` r
+## Plot the within storm Hs
 for (b in seq_len(nbstrp-1)) {
   plot(density(bstrp_pots_lst[[b]]$hs, bw=.1), xlim=c(0,15), ylim=c(0.,.5), xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")
   par(new=TRUE)
@@ -112,7 +116,7 @@ for (b in seq_len(nbstrp-1)) {
 plot(density(bstrp_pots_lst[[b+1]]$hs, bw=.1), xlim=c(0,15), ylim=c(0.,.5), main = "", xlab = "Hs", ylab = "Density")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 ## Notes
 
