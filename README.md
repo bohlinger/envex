@@ -77,7 +77,7 @@ plot(density(ds$hs, bw=.1))
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 10  # e.g. nbstrp = 20 for testing
+nbstrp <- 5  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -86,7 +86,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   3.321   0.000   3.321
+    ##   1.657   0.000   1.657
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -186,7 +186,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.25   13.34   14.52   15.12   16.04   35.88
+    ##   11.77   13.05   13.77   14.02   14.59   23.63
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -238,17 +238,114 @@ models_maxds <- fit_maxds_bstrp(bstrp_pots_lst,
 # Diagnose by comparing data against nsim HT2004 simulations
 
 ``` r
-nsim <- 100
+nsim <- 200
 diagnose_maxds_fitted(models_maxds[[2]], "tm2", "hs", nsim)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-4.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 ``` r
 diagnose_maxds_fitted(models_maxds[[2]], "hs", "tm2", nsim)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-14-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-14-4.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+## Simulate joint 100yr events
+
+``` r
+# predict on Laplace space
+preds_maxds_LP <- predict_from_HT2004_models(models_margs, models_maxds,
+                                             c('tm2','hs'), nbstrp,
+                                             preds=preds_margs_lst)
+# convert to real space
+preds_maxds <- convert_HT2004_preds_to_original_space(models_maxds,
+                                                      preds_maxds_LP,
+                              preds_margs_lst,
+                                                      var_lst = c("tm2", "hs"))
+
+# retrieve valid predicted values according to chosen space
+valids <- retrieve_valid_HT_samples(preds_maxds,
+                                    preds_maxds_LP,
+                                    preds_margs_lst,
+                                    "hs", c("tm2"),
+                                    models_maxds = models_maxds)
+
+
+df_joint <- data.frame(unlist(valids$X_valid$tm2), unlist(valids$Y_valid$tm2))
+colnames(df_joint) <- c("hs", "tm2")
+
+dfcovar <- NULL
+for (n in names(valids$covar_valid$tm2[[1]])){
+  dfcovar[[n]] <- NULL
+  for (b in 1:nbstrp){
+    dfcovar[[n]][[b]] <- valids$covar_valid$tm2[[b]][[n]]
+  }
+}
+
+# add covariates
+df_joint[['doy']] <- unlist(dfcovar[['doy']])
+df_joint[['Pdir']] <- unlist(dfcovar[['Pdir']])
+```
+
+## Plot Joint Distr
+
+``` r
+library(hexbin)
+h <- hexbin(df_joint)
+counts <- h@count
+formula <- as.formula(paste("tm2", "~", "hs"))
+custom_panel <- function(x, y, ...) {
+  panel.hexbinplot(x, y, ...)
+  panel.abline(v = 7.078289, col = "gray", lwd = 1, lty = 1)
+  panel.abline(h = 9.190518, col = "gray", lwd = 1, lty = 1)
+}
+
+library(ggplot2)
+library(metR)
+specific_levels <- c(0.01,0.05,0.1)
+ggplot() +
+  geom_bin2d(data = df_joint,  aes(x = df_joint$hs, y = df_joint$tm2), bins = 50) +
+  scale_fill_gradient(low = "white", high = "blue") +  # Color gradient
+  geom_density_2d(data = df_joint,  aes(x = df_joint$hs, y = df_joint$tm2), color = "red", size = 0.1, breaks = specific_levels) +  # Density lines
+  xlim(10, 21) +  # Extent in the x direction
+  ylim(8, 14) +  # Extent in the y direction
+  labs(title = "HT2004 predictions vs true annual joint maxima",
+       x = "Hs [m]",
+       y = "Tm2 [s]",
+       fill = "Bin density") +
+  theme_minimal()
+```
+
+    ## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+    ## ℹ Please use `linewidth` instead.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+    ## generated.
+
+    ## Warning: Use of `df_joint$hs` is discouraged.
+    ## ℹ Use `hs` instead.
+
+    ## Warning: Use of `df_joint$tm2` is discouraged.
+    ## ℹ Use `tm2` instead.
+
+    ## Warning: Use of `df_joint$hs` is discouraged.
+    ## ℹ Use `hs` instead.
+
+    ## Warning: Use of `df_joint$tm2` is discouraged.
+    ## ℹ Use `tm2` instead.
+
+    ## Warning: Removed 16 rows containing non-finite outside the scale range
+    ## (`stat_bin2d()`).
+
+    ## Warning: Removed 16 rows containing non-finite outside the scale range
+    ## (`stat_density2d()`).
+
+    ## Warning: Removed 2 rows containing missing values or values outside the scale range
+    ## (`geom_tile()`).
+
+![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+
+## Simulate storms (matching) given simulated storm peaks
 
 ## Notes
 

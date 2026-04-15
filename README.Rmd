@@ -68,7 +68,7 @@ plot(density(ds$hs, bw=.1))
 
 ```{r message=FALSE, warning=FALSE}
 # number of bootstrap/resampling steps
-nbstrp <- 10  # e.g. nbstrp = 20 for testing
+nbstrp <- 5  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -205,12 +205,84 @@ models_maxds <- fit_maxds_bstrp(bstrp_pots_lst,
 # Diagnose by comparing data against nsim HT2004 simulations
 
 ```{r fig.width=9, fig.height=4}
-nsim <- 100
+nsim <- 200
 diagnose_maxds_fitted(models_maxds[[2]], "tm2", "hs", nsim)
 ```
 ```{r fig.width=9, fig.height=4}
 diagnose_maxds_fitted(models_maxds[[2]], "hs", "tm2", nsim)
 ```
+
+## Simulate joint 100yr events
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+# predict on Laplace space
+preds_maxds_LP <- predict_from_HT2004_models(models_margs, models_maxds,
+                                             c('tm2','hs'), nbstrp,
+                                             preds=preds_margs_lst)
+# convert to real space
+preds_maxds <- convert_HT2004_preds_to_original_space(models_maxds,
+                                                      preds_maxds_LP,
+						      preds_margs_lst,
+                                                      var_lst = c("tm2", "hs"))
+
+# retrieve valid predicted values according to chosen space
+valids <- retrieve_valid_HT_samples(preds_maxds,
+                                    preds_maxds_LP,
+                                    preds_margs_lst,
+                                    "hs", c("tm2"),
+                                    models_maxds = models_maxds)
+
+
+df_joint <- data.frame(unlist(valids$X_valid$tm2), unlist(valids$Y_valid$tm2))
+colnames(df_joint) <- c("hs", "tm2")
+
+dfcovar <- NULL
+for (n in names(valids$covar_valid$tm2[[1]])){
+  dfcovar[[n]] <- NULL
+  for (b in 1:nbstrp){
+    dfcovar[[n]][[b]] <- valids$covar_valid$tm2[[b]][[n]]
+  }
+}
+
+# add covariates
+df_joint[['doy']] <- unlist(dfcovar[['doy']])
+df_joint[['Pdir']] <- unlist(dfcovar[['Pdir']])
+```
+
+## Plot Joint Distr
+
+```{r fig.width=9, fig.height=4}
+library(hexbin)
+h <- hexbin(df_joint)
+counts <- h@count
+formula <- as.formula(paste("tm2", "~", "hs"))
+custom_panel <- function(x, y, ...) {
+  panel.hexbinplot(x, y, ...)
+  panel.abline(v = 7.078289, col = "gray", lwd = 1, lty = 1)
+  panel.abline(h = 9.190518, col = "gray", lwd = 1, lty = 1)
+}
+
+library(ggplot2)
+library(metR)
+specific_levels <- c(0.01,0.05,0.1)
+ggplot() +
+  geom_bin2d(data = df_joint,  aes(x = df_joint$hs, y = df_joint$tm2), bins = 50) +
+  scale_fill_gradient(low = "white", high = "blue") +  # Color gradient
+  geom_density_2d(data = df_joint,  aes(x = df_joint$hs, y = df_joint$tm2), color = "red", size = 0.1, breaks = specific_levels) +  # Density lines
+  xlim(10, 21) +  # Extent in the x direction
+  ylim(8, 14) +  # Extent in the y direction
+  labs(title = "HT2004 predictions vs true annual joint maxima",
+       x = "Hs [m]",
+       y = "Tm2 [s]",
+       fill = "Bin density") +
+  theme_minimal()
+```
+
+## Simulate storms (matching) given simulated storm peaks
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+```
+
 
 ## Notes
 

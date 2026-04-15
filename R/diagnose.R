@@ -275,6 +275,7 @@ diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, yli
 diagnose_maxds_fitted <- function(maxd, X_str, Y_str, nsim) {
   #' @export
 
+  par(mfrow = c(2, 2))
   # plot Laplace margins
   X_all <- maxd[[X_str]][[Y_str]]$X_all
   X_fit <- maxd[[X_str]][[Y_str]]$X_fit
