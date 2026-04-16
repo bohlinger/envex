@@ -42,14 +42,17 @@ formula_string <- paste(prime_varstr, "~ te(doy, Pdir, bs = c('cc', 'cc'), k = n
 peak_picking_thr_model_fml <- as.formula(formula_string)
 
 # decorrelation time scale of 1 day
-df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
-                        decorrelation_time_scale = 1)
+system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
+                                    decorrelation_time_scale = 1))
 ```
 
     ## [1] "apply threshold model to data"
     ## [1] "label storms"
     ## [1] "combine and relabel storm peaks that are too close"
     ## [1] "find peaks for combined storms"
+
+    ##    user  system elapsed 
+    ##  23.433   0.867  24.302
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -80,7 +83,7 @@ plot(density(ds$hs, bw=.1))
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 20  # e.g. nbstrp = 20 for testing
+nbstrp <- 100  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -89,7 +92,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   2.654   0.002   2.662
+    ##  13.513   0.140  13.656
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -155,7 +158,7 @@ model_fml_thr[['tm2']] <- fml_ald_tm2
 model_fml_occ[['tm2']] <- fml_pp
 model_fml_gpd[['tm2']] <- fml_gpd
 
-
+syst <- system.time(
 models_margs <- fit_margs_bstrp(bstrp_pots_lst,
                                 model_fml_thr, model_fml_occ, model_fml_gpd,
                                 extr_thr=thr_range, nr_of_years,
@@ -165,6 +168,8 @@ models_margs <- fit_margs_bstrp(bstrp_pots_lst,
                                 nquad = 225,
                                 knots = knots,
                                 node_str_lst = node_str_lst)
+)
+print(syst)
 ```
 
 ## Simulate 100yr maxima
@@ -172,11 +177,15 @@ models_margs <- fit_margs_bstrp(bstrp_pots_lst,
 ``` r
 RP <- 100  # return period
 nmc <- 100  # number of mc samples for each bootstrap sample
+
+syst <- system.time(
 preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
                                  nmc = nmc, var_lst = c('hs','tm2'),
                  nbstrp = nbstrp,
                                  covarstr_lst = c('Pdir','doy'),
                                  grid_interval = list('Pdir'=1, 'doy'=1))
+)
+print(syst)
 ```
 
 ## Plot resulting simulated peaks
@@ -189,7 +198,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   9.635  11.829  13.037  14.499  15.017 135.892
+    ##   9.852  12.102  13.262  14.180  15.086  87.324
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -203,8 +212,8 @@ abline(v = rv100_q2p, col = "blue", lwd = 2)
 abline(v = rv100_q4, col = "paleturquoise2", lwd = 2)
 legend("topright",
        legend = c("Max observed hs",
-                  "RV100 (q'2 estimator)",
-                  "RV100 (q4 estimator)"),
+                  "RV100 (q'2)",
+                  "RV100 (q4)"),
        col = c("gray", "blue", "paleturquoise2"),
        lwd = 2,
        bty = "n")  # removes box around legend
@@ -218,6 +227,7 @@ legend("topright",
 # check various thresholds ###
 maxd_thr <- seq(.5,.98,.01)
 models_maxds_thr <- NULL
+syst <- system.time(
 for (t in seq_along(maxd_thr)){
  print(c('## t:', maxd_thr[t]))
  models_maxds_tmp <- fit_maxds_bstrp(bstrp_pots_lst,
@@ -226,6 +236,9 @@ for (t in seq_along(maxd_thr)){
                                      nbstrp=nbstrp)
  models_maxds_thr[[t]] <- models_maxds_tmp
 }
+)
+
+print(syst)
 ```
 
 ``` r
@@ -239,10 +252,14 @@ diagnose_maxds(models_maxds_thr, maxd_thr, 'hs', 'tm2', ylim=c(-1.5, 1.5))
 
 ``` r
 maxd_thr_range <- c(.6,.8)
+syst <- system.time(
 models_maxds <- fit_maxds_bstrp(bstrp_pots_lst,
                                 models_margs,
                                 maxd_thr,
                                 nbstrp = nbstrp)
+)
+
+print(syst)
 ```
 
 # Diagnose by comparing data against nsim HT2004 simulations
@@ -307,8 +324,8 @@ ggplot() +
   geom_bin2d(data = df_joint,  aes(x = df_joint$hs, y = df_joint$tm2), bins = 50) +
   scale_fill_gradient(low = "white", high = "blue") +  # Color gradient
   geom_density_2d(data = df_joint,  aes(x = df_joint$hs, y = df_joint$tm2), color = "red", size = 0.1, breaks = specific_levels) +  # Density lines
-  xlim(10, 21) +  # Extent in the x direction
-  ylim(5, 14) +  # Extent in the y direction
+  xlim(5, 25) +  # Extent in the x direction
+  ylim(4, 16) +  # Extent in the y direction
   labs(title = "HT2004 predictions",
        x = "Hs [m]",
        y = "Tm2 [s]",
@@ -344,14 +361,23 @@ nr_of_storms <- 100
 
 df_sim_in <- df_joint_pots[varlst_matching][1:nr_of_storms,]
 df_hist_in <- df_hist_pots[c("hs", "s_tm2", "doy" , "Pdir", "tm2", "storm_idx")]
+syst <- system.time(
 matched_storm_idx <- find_idx_closest_storm_peaks(df_sim_in, df_hist_in,
                                                   varlst = varlst_matching,
                                                   dist_fct_lst = dist_fct_lst,
                                                   dist_circ_L_lst = dist_circ_L_lst,
                                                   sidx = 1, eidx = 100)
+)
+
+print(syst)
 
 df_storms_filtered <- df_pick$storms[df_pick$storms$storm_idx %in% matched_storm_idx[1:nr_of_storms], ]
+
+syst <- system.time(
 res <- anchor_sim_storms(df_joint_pots, df_hist_pots, df_hist_storms, matched_storm_idx)
+)
+
+print(syst)
 ```
 
 ``` r
@@ -363,7 +389,7 @@ vis_sim_storms(res, storm_idx=10, xlim=c(0,13), ylim=c(0,20))
 
 ``` r
 # plot simulated peaks and storms
-show_sim_pop(res, xlim=c(2,15), ylim=c(0,25))
+show_sim_pop(res, xlim=c(2,15), ylim=c(0,23))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
@@ -375,12 +401,15 @@ show_sim_pop(res, xlim=c(2,15), ylim=c(0,25))
 hmax_r_lst <- NULL
 hmax_f_lst <- NULL
 hmax_p_lst <- NULL
+syst <- system.time(
 for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
   indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
   hmax_r_lst[[i]] <- storm_trajectory_Hmax(indiv_storm$hs, indiv_storm$tm2, 3600, dist='rayleigh', ulim=60)[1] # 1=mode, 2=mean
   hmax_f_lst[[i]] <- storm_trajectory_Hmax(indiv_storm$hs, indiv_storm$tm2, 3600, dist='forristall', ulim=60)[1] # 1=mode, 2=mean
   hmax_p_lst[[i]] <- storm_trajectory_Hmax(indiv_storm$hs, indiv_storm$tm2, 3600, dist='prevosto', ulim=60)[1] # 1=mode, 2=mean
-}
+})
+
+print(syst)
 
 hmax_dist_r <- unlist(hmax_r_lst)
 hmax_dist_f <- unlist(hmax_f_lst)
@@ -423,8 +452,8 @@ consider subregions on covariate parameter space (e.g. sector, season,
 ``` r
 # plot Hs against covariate parameter space doy and Pdir
 # Define your interval
-x_min_Pdir_high <- 200
-x_max_Pdir_high <- 250
+x_min_Pdir_high <- 180
+x_max_Pdir_high <- 230
 
 x_min_Pdir_low <- 130
 x_max_Pdir_low <- 180
@@ -475,13 +504,13 @@ RP_f_hmax_high <- quantile(unlist(hmax_sub_f_lst_high), exp(-1))
 ## Print results for low and high sector and omni
 
 ``` r
-cat(sprintf("Low sector: %.2f\n High sector: %.2f\n Omni: %.2f\n",
+cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 13.86
-    ##  High sector: 21.50
-    ##  Omni: 21.80
+    ## Low sector: 14.21
+    ## High sector: 24.07
+    ## Omni: 24.60
 
 ## Notes
 

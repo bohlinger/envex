@@ -704,13 +704,13 @@ show_sim_pop <- function(res, xlim=c(0,15), ylim=c(0,25), steepness=FALSE){
     indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
     par(new=TRUE)
     indiv_peak <- subset(indiv_storm, hs == max(indiv_storm$hs))
-    plot(indiv_peak$tm2, indiv_peak$hs, pch=1, xlim=xlim, ylim=ylim, cex=.5, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("orange", alpha.f = .3))
+    plot(indiv_peak$tm2, indiv_peak$hs, pch=1, xlim=xlim, ylim=ylim, cex=.5, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("orange", alpha.f = .5))
   }
   for (i in 1:length(unique(res$hist_storms$pseudo_storm_idx))){
     indiv_storm <- subset(res$hist_storms, pseudo_storm_idx == i)
     par(new=TRUE)
     indiv_peak <- subset(indiv_storm, hs == max(indiv_storm$hs))
-    plot(indiv_peak$tm2, indiv_peak$hs, pch=20, xlim=xlim, ylim=ylim, cex=.5, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("royalblue", alpha.f = .4))
+    plot(indiv_peak$tm2, indiv_peak$hs, pch=20, xlim=xlim, ylim=ylim, cex=.5, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("royalblue", alpha.f = .5))
   }
 
   if (steepness == TRUE){
