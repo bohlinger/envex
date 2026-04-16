@@ -26,11 +26,14 @@ library(evgam)
 library(envex)
 
 # subset ds_ekofisk to what is needed
-
+# data from 1976-01-01 00:00:00 to 2023-12-31 23:00:00
 df_ekofisk_red <- df_ekofisk[, c("time", "hs", "wind_speed_10m", "tp", "tm2", "Pdir", "doy", "dt")]
 
 # reduce data for test from 1976-01-01 to 1986-01-01
-ds <- df_ekofisk_red[1:87673,]  # 10 yrs for quicker testing
+# ds <- df_ekofisk_red[1:87673,]  # 10 yrs
+
+# reduce data for test from 1976-01-01 to 1996-01-01
+ds <- df_ekofisk_red[1:175321,]  # 20 yrs
 
 # choose primary variable
 prime_varstr = 'hs'
@@ -68,7 +71,7 @@ plot(density(ds$hs, bw=.1))
 
 ```{r message=FALSE, warning=FALSE}
 # number of bootstrap/resampling steps
-nbstrp <- 10  # e.g. nbstrp = 20 for testing
+nbstrp <- 20  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -147,7 +150,7 @@ models_margs <- fit_margs_bstrp(bstrp_pots_lst,
 ## Simulate 100yr maxima
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
-RP <- 1  # return period
+RP <- 100  # return period
 nmc <- 100  # number of mc samples for each bootstrap sample
 preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
                                  nmc = nmc, var_lst = c('hs','tm2'),
