@@ -52,7 +52,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  25.423   1.826  27.264
+    ##  28.231   1.791  30.026
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -83,7 +83,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 10  # e.g. nbstrp = 20 for testing
+nbstrp <- 50  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -92,7 +92,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   1.431   0.001   1.434
+    ##   8.546   0.067   8.616
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -186,8 +186,7 @@ nmc <- 100  # number of mc samples for each bootstrap sample
 
 syst <- system.time(
 preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
-                                 nmc = nmc, var_lst = c('hs','tm2'),
-                 nbstrp = nbstrp,
+                                 nmc = nmc, var_lst = c('hs','tm2'), nbstrp = nbstrp,
                                  covarstr_lst = c('Pdir','doy'),
                                  grid_interval = list('Pdir'=1, 'doy'=1))
 )
@@ -204,7 +203,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   9.945  12.467  13.563  15.961  15.199 195.970
+    ##   10.18   12.70   13.77   14.64   15.29  329.11
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -271,7 +270,7 @@ print(syst)
 # Diagnose by comparing data against nsim HT2004 simulations
 
 ``` r
-nsim <- 200
+nsim <- 100
 diagnose_maxds_fitted(models_maxds[[2]], "tm2", "hs", nsim)
 ```
 
@@ -458,8 +457,8 @@ consider subregions on covariate parameter space (e.g. sector, season,
 ``` r
 # plot Hs against covariate parameter space doy and Pdir
 # Define your interval
-x_min_Pdir_high <- 180
-x_max_Pdir_high <- 230
+x_min_Pdir_high <- 190
+x_max_Pdir_high <- 240
 
 x_min_Pdir_low <- 130
 x_max_Pdir_low <- 180
@@ -514,9 +513,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 15.73
-    ## High sector: 24.10
-    ## Omni: 24.48
+    ## Low sector: 12.02
+    ## High sector: 20.70
+    ## Omni: 21.00
 
 ## Notes
 

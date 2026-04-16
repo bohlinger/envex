@@ -593,7 +593,7 @@ visualize_storm_picking <- function(dfin, dfinall = NULL, xstr = "dt",
   par(new = TRUE)
   plot(dfin$pots[[xstr]][sidx:eidx], dfin$pots[[ystr]][sidx:eidx],
        pch = 1, cex = 1.,
-       col = adjustcolor("orange", alpha.f = 0.5),
+       col = adjustcolor("orange", alpha.f = 0.6),
        xlim = c(dfin$storms[[xstr]][sidx], dfin$storms[[xstr]][eidx]), ylim = ylim,
        xlab = xlab, ylab = ylab, main = "")  # peaks
   legend("topright",

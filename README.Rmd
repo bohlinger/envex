@@ -71,7 +71,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ```{r message=FALSE, warning=FALSE}
 # number of bootstrap/resampling steps
-nbstrp <- 10  # e.g. nbstrp = 20 for testing
+nbstrp <- 50  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -234,7 +234,7 @@ print(syst)
 # Diagnose by comparing data against nsim HT2004 simulations
 
 ```{r fig.width=9, fig.height=6}
-nsim <- 200
+nsim <- 100
 diagnose_maxds_fitted(models_maxds[[2]], "tm2", "hs", nsim)
 ```
 ```{r fig.width=9, fig.height=6}
@@ -408,8 +408,8 @@ legend("topright", legend = c("Rayleigh", "Forristall", "Prevesto",
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 # plot Hs against covariate parameter space doy and Pdir
 # Define your interval
-x_min_Pdir_high <- 180
-x_max_Pdir_high <- 230
+x_min_Pdir_high <- 190
+x_max_Pdir_high <- 240
 
 x_min_Pdir_low <- 130
 x_max_Pdir_low <- 180
