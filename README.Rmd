@@ -71,7 +71,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ```{r message=FALSE, warning=FALSE}
 # number of bootstrap/resampling steps
-nbstrp <- 100  # e.g. nbstrp = 20 for testing
+nbstrp <- 5  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -103,44 +103,8 @@ plot(density(bstrp_pots_lst[[b+1]]$hs, bw=.1), xlim=c(0,15), ylim=c(0.,.5), main
 
 ## Cross-validation for best threshold range
 
-```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
-df_pots <- df_pick$pots
-varstr <- 'hs'
-
-### define models ###
-fml_gpd <- list(exc ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")),
-                ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")))
-fml_ald <- hs ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
-
-model_fml_thr <- NULL
-model_fml_gpd <- NULL
-model_fml_thr[[varstr]] <- fml_ald
-model_fml_gpd[[varstr]] <- fml_gpd
-
-# define knots/nodes
-knots = list(doy = c(0,366), Pdir=c(0,360))
-node_str_lst = c('doy', 'Pdir')
-
-### cross validation hs ###
-nr_cv <- 5
-extr_thr_lst <- seq(.5, .98, .02)
-tailfrac <- .05  # fraction of tail to optimize for
-cvres_hs <- cross_validation(dfin = df_pots, nr_cv = nr_cv,
-                             extr_thr_lst = extr_thr_lst,
-                             varstr = varstr,
-                             model_fml_thr = model_fml_thr,
-                             model_fml_gpd = model_fml_gpd,
-                             knots = knots,
-                             tailfrac = tailfrac)
-```
-
-```{r fig.width=9, fig.height=6}
-plot_cvres(cvres_hs, show_errors = TRUE)
-```
-```{r fig.width=9, fig.height=6}
-# based on above figure:
-# decide on interval for bootstrapping thresholds and visualize
-plot_cvres(cvres_hs, limits=c(.8, .9))
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# possibly some figure on cross-validation
 ```
 
 ## Model the non-stationary storm peaks
@@ -161,11 +125,18 @@ nr_of_years <- 48
 thr_range <- list('hs'=c(.8,.9))
 
 # define models
-fml_pp <- ~ te(doy, Pdir, bs = c('cc', 'cc'), k = c(6,8))
-fml_ald_tm2 <- tm2 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
+fml_pp <- ~ te(doy, Pdir, bs = c('cc', 'cc'), k = c(4,6))
+fml_gpd <- list(exc ~ te(doy, Pdir, k=c(4,6), bs=c("cc","cc")),
+                ~ te(doy, Pdir, k=c(4,6), bs=c("cc","cc")))
+fml_ald <- hs ~ te(doy, Pdir, bs=c("cc","cc"), k=c(4,6))
+fml_ald_tm2 <- tm2 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(4,6))
 
+model_fml_thr <- NULL
+model_fml_gpd <- NULL
 model_fml_occ <- NULL
 model_fml_occ[['hs']] <- fml_pp
+model_fml_thr[['hs']] <- fml_ald
+model_fml_gpd[['hs']] <- fml_gpd
 model_fml_occ[['tm2']] <- fml_pp
 model_fml_thr[['tm2']] <- fml_ald_tm2
 model_fml_gpd[['tm2']] <- fml_gpd

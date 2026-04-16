@@ -52,7 +52,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  23.433   0.867  24.302
+    ##  23.851   1.502  25.358
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -72,9 +72,9 @@ visualize_storm_picking(dfin = df_pick, dfinall = ds,
 
 ``` r
 par(mfrow = c(1, 3))
-plot(density(df_pick$pots$hs, bw=.1))
-plot(density(df_pick$storms$hs, bw=.1))
-plot(density(ds$hs, bw=.1))
+plot(density(df_pick$pots$hs, bw=.1), main="Storm Peaks Hs [m]")
+plot(density(df_pick$storms$hs, bw=.1), main="Storm Sea States Hs [m]")
+plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
@@ -83,7 +83,7 @@ plot(density(ds$hs, bw=.1))
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 100  # e.g. nbstrp = 20 for testing
+nbstrp <- 5  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -92,7 +92,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  13.513   0.140  13.656
+    ##   0.686   0.000   0.686
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -124,6 +124,12 @@ plot(density(bstrp_pots_lst[[b+1]]$hs, bw=.1), xlim=c(0,15), ylim=c(0.,.5), main
 
 ![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
+## Cross-validation for best threshold range
+
+``` r
+# possibly some figure on cross-validation
+```
+
 ## Model the non-stationary storm peaks
 
 ``` r
@@ -142,20 +148,20 @@ nr_of_years <- 48
 thr_range <- list('hs'=c(.8,.9))
 
 # define models
-fml_pp <- ~ te(doy, Pdir, bs = c('cc', 'cc'), k = c(6,8))
-fml_gpd <- list(exc ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")),
-                ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")))
-fml_ald <- hs ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
-fml_ald_tm2 <- tm2 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
+fml_pp <- ~ te(doy, Pdir, bs = c('cc', 'cc'), k = c(4,6))
+fml_gpd <- list(exc ~ te(doy, Pdir, k=c(4,6), bs=c("cc","cc")),
+                ~ te(doy, Pdir, k=c(4,6), bs=c("cc","cc")))
+fml_ald <- hs ~ te(doy, Pdir, bs=c("cc","cc"), k=c(4,6))
+fml_ald_tm2 <- tm2 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(4,6))
 
 model_fml_thr <- NULL
-model_fml_occ <- NULL
 model_fml_gpd <- NULL
-model_fml_thr[['hs']] <- fml_ald
+model_fml_occ <- NULL
 model_fml_occ[['hs']] <- fml_pp
+model_fml_thr[['hs']] <- fml_ald
 model_fml_gpd[['hs']] <- fml_gpd
-model_fml_thr[['tm2']] <- fml_ald_tm2
 model_fml_occ[['tm2']] <- fml_pp
+model_fml_thr[['tm2']] <- fml_ald_tm2
 model_fml_gpd[['tm2']] <- fml_gpd
 
 syst <- system.time(
@@ -194,11 +200,11 @@ print(syst)
 dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   9.852  12.102  13.262  14.180  15.086  87.324
+    ##   10.61   12.36   13.60   14.07   15.06   28.58
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -219,7 +225,7 @@ legend("topright",
        bty = "n")  # removes box around legend
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->
 
 ## Compute joint models testing various thresholds
 
@@ -246,7 +252,7 @@ print(syst)
 diagnose_maxds(models_maxds_thr, maxd_thr, 'hs', 'tm2', ylim=c(-1.5, 1.5))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 ## Choose threshold range from test and sample across
 
@@ -269,13 +275,13 @@ nsim <- 200
 diagnose_maxds_fitted(models_maxds[[2]], "tm2", "hs", nsim)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 ``` r
 diagnose_maxds_fitted(models_maxds[[2]], "hs", "tm2", nsim)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ## Simulate joint 100yr events
 
@@ -333,7 +339,7 @@ ggplot() +
   theme_minimal()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ## Simulate storms (matching) given simulated storm peaks
 
@@ -385,14 +391,14 @@ print(syst)
 vis_sim_storms(res, storm_idx=10, xlim=c(0,13), ylim=c(0,20))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
 
 ``` r
 # plot simulated peaks and storms
 show_sim_pop(res, xlim=c(2,15), ylim=c(0,23))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
 
 ## Compute Hmax given RP peak featuring storms
 
@@ -443,7 +449,7 @@ legend("topright", legend = c("Rayleigh", "Forristall", "Prevesto",
        lty = c(1, 1, 2, 2), lwd = c(1, 1, 1, 1, 2))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-21-1.png)<!-- --> \## Only
+![](README_files/figure-gfm/unnamed-chunk-22-1.png)<!-- --> \## Only
 consider subregions on covariate parameter space (e.g. sector, season,
 …)
 
@@ -468,7 +474,7 @@ rect(xleft = x_min_Pdir_low, xright = x_max_Pdir_low,
      col = adjustcolor("blue", alpha.f = 0.3), border = NA)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
 
 ``` r
 # choose lowest and highest regions and create subset
@@ -508,9 +514,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 14.21
-    ## High sector: 24.07
-    ## Omni: 24.60
+    ## Low sector: 12.44
+    ## High sector: 22.20
+    ## Omni: 22.54
 
 ## Notes
 
