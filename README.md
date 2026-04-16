@@ -25,10 +25,10 @@ library(envex)
 
 # subset ds_ekofisk to what is needed
 
-ds <- df_ekofisk[, c("time", "hs", "wind_speed_10m", "tp", "tm2", "Pdir", "doy", "dt")]
+df_ekofisk_red <- df_ekofisk[, c("time", "hs", "wind_speed_10m", "tp", "tm2", "Pdir", "doy", "dt")]
 
 # reduce data for test from 1976-01-01 to 1986-01-01
-# ds[1:87673,]  # 10 yrs for quicker testing
+ds <- df_ekofisk_red[1:87673,]  # 10 yrs for quicker testing
 
 # choose primary variable
 prime_varstr = 'hs'
@@ -77,7 +77,7 @@ plot(density(ds$hs, bw=.1))
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 20  # e.g. nbstrp = 20 for testing
+nbstrp <- 10  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -86,7 +86,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   6.817   0.019   6.836
+    ##   0.616   0.000   0.617
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -167,8 +167,8 @@ models_margs <- fit_margs_bstrp(bstrp_pots_lst,
 ## Simulate 100yr maxima
 
 ``` r
-RP <- 100
-nmc <- 100
+RP <- 1  # return period
+nmc <- 100  # number of mc samples for each bootstrap sample
 preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
                                  nmc = nmc, var_lst = c('hs','tm2'),
                  nbstrp = nbstrp,
@@ -186,7 +186,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.38   13.27   14.20   14.74   15.44   83.30
+    ##   2.142   4.666   6.424   6.586   8.171  27.177
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -306,33 +306,6 @@ ggplot() +
   theme_minimal()
 ```
 
-    ## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
-    ## ℹ Please use `linewidth` instead.
-    ## This warning is displayed once every 8 hours.
-    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-    ## generated.
-
-    ## Warning: Use of `df_joint$hs` is discouraged.
-    ## ℹ Use `hs` instead.
-
-    ## Warning: Use of `df_joint$tm2` is discouraged.
-    ## ℹ Use `tm2` instead.
-
-    ## Warning: Use of `df_joint$hs` is discouraged.
-    ## ℹ Use `hs` instead.
-
-    ## Warning: Use of `df_joint$tm2` is discouraged.
-    ## ℹ Use `tm2` instead.
-
-    ## Warning: Removed 46 rows containing non-finite outside the scale range
-    ## (`stat_bin2d()`).
-
-    ## Warning: Removed 46 rows containing non-finite outside the scale range
-    ## (`stat_density2d()`).
-
-    ## Warning: Removed 1 row containing missing values or values outside the scale range
-    ## (`geom_tile()`).
-
 ![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ## Simulate storms (matching) given simulated storm peaks
@@ -372,16 +345,68 @@ res <- anchor_sim_storms(df_joint_pots, df_hist_pots, df_hist_storms, matched_st
 ```
 
 ``` r
+# plot random storm
 vis_sim_storms(res, storm_idx=10, xlim=c(0,13), ylim=c(0,20))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 
 ``` r
-show_sim_pop(res, xlim=c(0,20), ylim=c(0,40))
+# plot simulated peaks and storms
+show_sim_pop(res, xlim=c(2,15), ylim=c(0,25))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+## Compute Hmax given RP peak featuring storms
+
+``` r
+# computing Hmax based on RP storm trajectories
+hmax_r_lst <- NULL
+hmax_f_lst <- NULL
+hmax_p_lst <- NULL
+for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
+  indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
+  hmax_r_lst[[i]] <- storm_trajectory_Hmax(indiv_storm$hs, indiv_storm$tm2, 3600, dist='rayleigh', ulim=60)[1] # 1=mode, 2=mean
+  hmax_f_lst[[i]] <- storm_trajectory_Hmax(indiv_storm$hs, indiv_storm$tm2, 3600, dist='forristall', ulim=60)[1] # 1=mode, 2=mean
+  hmax_p_lst[[i]] <- storm_trajectory_Hmax(indiv_storm$hs, indiv_storm$tm2, 3600, dist='prevosto', ulim=60)[1] # 1=mode, 2=mean
+}
+
+hmax_dist_r <- unlist(hmax_r_lst)
+hmax_dist_f <- unlist(hmax_f_lst)
+hmax_dist_p <- unlist(hmax_p_lst)
+
+# RP hmax
+RP_r_hmax <- quantile(unlist(hmax_r_lst), exp(-1))
+RP_f_hmax <- quantile(unlist(hmax_f_lst), exp(-1))
+RP_p_hmax <- quantile(unlist(hmax_p_lst), exp(-1))
+```
+
+``` r
+ylim <- c(0, .3)
+xlim <- c(20, 50)
+# densities
+plot(density(hmax_dist_r, bw=.1), col='black', ylim=ylim, xlim=xlim, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n')
+par(new=TRUE)
+plot(density(hmax_dist_f, bw=.1), col='blue', ylim=ylim, xlim=xlim, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n')
+par(new=TRUE)
+plot(density(hmax_dist_p, bw=.1), col='blue', ylim=ylim, xlim=xlim, xlab='Hmax [m]', ylab='Density', main='', lty=2)
+# highest alleged wave
+abline(v = quantile(hmax_dist_r, exp(-1)), col = 'black', lty = 1, lwd = 2)
+abline(v = quantile(hmax_dist_f, exp(-1)), col = 'blue', lty = 1, lwd = 2)
+abline(v = quantile(hmax_dist_p, exp(-1)), col = 'blue', lty = 2, lwd = 2)
+abline(v = 23, col = 'red', lty = 1, lwd = 2)
+abline(v = 27, col = 'red', lty = 2, lwd = 2)
+# legend
+legend("topright", legend = c("Rayleigh", "Forristall", "Prevesto",
+                              "Alleged highest wave", "Highest observed wave"),
+       col = c("black", "blue", "blue", "red", "red"),
+       lty = c(1, 1, 2, 2), lwd = c(1, 1, 1, 1, 2))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-21-1.png)<!-- --> \## Only
+consider subregions on covariate parameter space (e.g. sector, season,
+…)
 
 ## Notes
 
