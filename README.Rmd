@@ -172,6 +172,13 @@ rv100_q4 <- quantile(unlist(dhs$maxvals),exp(-1))  # q4 estimator
 rv100_q2p <- mean(unlist(rvs))  # q'2 estimator
 abline(v = rv100_q2p, col = "blue", lwd = 2)
 abline(v = rv100_q4, col = "paleturquoise2", lwd = 2)
+legend("topright",
+       legend = c("Max observed hs",
+                  "RV100 (q'2 estimator)",
+                  "RV100 (q4 estimator)"),
+       col = c("gray", "blue", "paleturquoise2"),
+       lwd = 2,
+       bty = "n")  # removes box around legend
 ```
 
 ## Compute joint models testing various thresholds
@@ -190,7 +197,7 @@ for (t in seq_along(maxd_thr)){
 }
 ```
 
-```{r fig.width=9, fig.height=4}
+```{r fig.width=9, fig.height=6}
 # diagnose effect of threshold choice
 diagnose_maxds(models_maxds_thr, maxd_thr, 'hs', 'tm2', ylim=c(-1.5, 1.5))
 ```
@@ -207,11 +214,11 @@ models_maxds <- fit_maxds_bstrp(bstrp_pots_lst,
 
 # Diagnose by comparing data against nsim HT2004 simulations
 
-```{r fig.width=9, fig.height=4}
+```{r fig.width=9, fig.height=6}
 nsim <- 200
 diagnose_maxds_fitted(models_maxds[[2]], "tm2", "hs", nsim)
 ```
-```{r fig.width=9, fig.height=4}
+```{r fig.width=9, fig.height=6}
 diagnose_maxds_fitted(models_maxds[[2]], "hs", "tm2", nsim)
 ```
 
@@ -254,7 +261,7 @@ df_joint[['Pdir']] <- unlist(dfcovar[['Pdir']])
 
 ## Plot Joint Distr
 
-```{r fig.width=9, fig.height=4, message=FALSE, warning=FALSE}
+```{r fig.width=9, fig.height=5, message=FALSE, warning=FALSE}
 library(ggplot2)
 library(metR)
 specific_levels <- c(0.01,0.05,0.1)
@@ -343,7 +350,7 @@ RP_p_hmax <- quantile(unlist(hmax_p_lst), exp(-1))
 
 ```{r fig.width=9, fig.height=5}
 ylim <- c(0, .3)
-xlim <- c(20, 50)
+xlim <- c(10, 50)
 # densities
 plot(density(hmax_dist_r, bw=1), col='black', ylim=ylim, xlim=xlim, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n')
 par(new=TRUE)
@@ -380,10 +387,10 @@ plot(ds$Pdir, ds$hs, pch=20, xlab="", ylab="Hs [m]")
 # Add shaded regions
 rect(xleft = x_min_Pdir_high, xright = x_max_Pdir_high,
      ybottom = par("usr")[3], ytop = par("usr")[4],
-     col = adjustcolor("red", alpha.f = 0.1), border = NA)
+     col = adjustcolor("red", alpha.f = 0.3), border = NA)
 rect(xleft = x_min_Pdir_low, xright = x_max_Pdir_low,
      ybottom = par("usr")[3], ytop = par("usr")[4],
-     col = adjustcolor("blue", alpha.f = 0.1), border = NA)
+     col = adjustcolor("blue", alpha.f = 0.3), border = NA)
 ```
 
 
@@ -421,7 +428,8 @@ RP_f_hmax_high <- quantile(unlist(hmax_sub_f_lst_high), exp(-1))
 ## Print results for low and high sector and omni
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-print(c(RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
+cat(sprintf("Low sector: %.2f\n High sector: %.2f\n Omni: %.2f\n",
+            RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 ## Notes
 

@@ -89,7 +89,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   2.780   0.004   2.785
+    ##   2.654   0.002   2.662
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -189,7 +189,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   10.19   12.49   13.76   14.71   15.65   95.95
+    ##   9.635  11.829  13.037  14.499  15.017 135.892
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -201,6 +201,13 @@ rv100_q4 <- quantile(unlist(dhs$maxvals),exp(-1))  # q4 estimator
 rv100_q2p <- mean(unlist(rvs))  # q'2 estimator
 abline(v = rv100_q2p, col = "blue", lwd = 2)
 abline(v = rv100_q4, col = "paleturquoise2", lwd = 2)
+legend("topright",
+       legend = c("Max observed hs",
+                  "RV100 (q'2 estimator)",
+                  "RV100 (q4 estimator)"),
+       col = c("gray", "blue", "paleturquoise2"),
+       lwd = 2,
+       bty = "n")  # removes box around legend
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
@@ -387,7 +394,7 @@ RP_p_hmax <- quantile(unlist(hmax_p_lst), exp(-1))
 
 ``` r
 ylim <- c(0, .3)
-xlim <- c(20, 50)
+xlim <- c(10, 50)
 # densities
 plot(density(hmax_dist_r, bw=1), col='black', ylim=ylim, xlim=xlim, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n')
 par(new=TRUE)
@@ -426,10 +433,10 @@ plot(ds$Pdir, ds$hs, pch=20, xlab="", ylab="Hs [m]")
 # Add shaded regions
 rect(xleft = x_min_Pdir_high, xright = x_max_Pdir_high,
      ybottom = par("usr")[3], ytop = par("usr")[4],
-     col = adjustcolor("red", alpha.f = 0.1), border = NA)
+     col = adjustcolor("red", alpha.f = 0.3), border = NA)
 rect(xleft = x_min_Pdir_low, xright = x_max_Pdir_low,
      ybottom = par("usr")[3], ytop = par("usr")[4],
-     col = adjustcolor("blue", alpha.f = 0.1), border = NA)
+     col = adjustcolor("blue", alpha.f = 0.3), border = NA)
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
@@ -468,11 +475,13 @@ RP_f_hmax_high <- quantile(unlist(hmax_sub_f_lst_high), exp(-1))
 ## Print results for low and high sector and omni
 
 ``` r
-print(c(RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
+cat(sprintf("Low sector: %.2f\n High sector: %.2f\n Omni: %.2f\n",
+            RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## 36.78794% 36.78794% 36.78794% 
-    ##  13.50364  21.10000  21.34201
+    ## Low sector: 13.86
+    ##  High sector: 21.50
+    ##  Omni: 21.80
 
 ## Notes
 
