@@ -77,7 +77,7 @@ plot(density(ds$hs, bw=.1))
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 5  # e.g. nbstrp = 20 for testing
+nbstrp <- 20  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -86,7 +86,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   1.702   0.001   1.703
+    ##   6.817   0.019   6.836
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -186,7 +186,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.50   13.46   14.45   15.98   16.14  113.02
+    ##   11.38   13.27   14.20   14.74   15.44   83.30
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -324,11 +324,14 @@ ggplot() +
     ## Warning: Use of `df_joint$tm2` is discouraged.
     ## ℹ Use `tm2` instead.
 
-    ## Warning: Removed 34 rows containing non-finite outside the scale range
+    ## Warning: Removed 46 rows containing non-finite outside the scale range
     ## (`stat_bin2d()`).
 
-    ## Warning: Removed 34 rows containing non-finite outside the scale range
+    ## Warning: Removed 46 rows containing non-finite outside the scale range
     ## (`stat_density2d()`).
+
+    ## Warning: Removed 1 row containing missing values or values outside the scale range
+    ## (`geom_tile()`).
 
 ![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 

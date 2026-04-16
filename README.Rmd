@@ -68,7 +68,7 @@ plot(density(ds$hs, bw=.1))
 
 ```{r message=FALSE, warning=FALSE}
 # number of bootstrap/resampling steps
-nbstrp <- 5  # e.g. nbstrp = 20 for testing
+nbstrp <- 20  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -304,11 +304,11 @@ df_storms_filtered <- df_pick$storms[df_pick$storms$storm_idx %in% matched_storm
 res <- anchor_sim_storms(df_joint_pots, df_hist_pots, df_hist_storms, matched_storm_idx)
 ```
 
-```{r fig.width=9, fig.height=4}
+```{r fig.width=9, fig.height=9}
 vis_sim_storms(res, storm_idx=10, xlim=c(0,13), ylim=c(0,20))
 ```
 
-```{r fig.width=9, fig.height=4}
+```{r fig.width=9, fig.height=5}
 show_sim_pop(res, xlim=c(0,20), ylim=c(0,40))
 ```
 
