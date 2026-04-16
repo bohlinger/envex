@@ -52,7 +52,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  23.851   1.502  25.358
+    ##  25.423   1.826  27.264
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -83,7 +83,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 5  # e.g. nbstrp = 20 for testing
+nbstrp <- 10  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -92,7 +92,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   0.686   0.000   0.686
+    ##   1.431   0.001   1.434
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -204,7 +204,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   10.61   12.36   13.60   14.07   15.06   28.58
+    ##   9.945  12.467  13.563  15.961  15.199 195.970
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -514,9 +514,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 12.44
-    ## High sector: 22.20
-    ## Omni: 22.54
+    ## Low sector: 15.73
+    ## High sector: 24.10
+    ## Omni: 24.48
 
 ## Notes
 

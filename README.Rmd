@@ -71,7 +71,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ```{r message=FALSE, warning=FALSE}
 # number of bootstrap/resampling steps
-nbstrp <- 5  # e.g. nbstrp = 20 for testing
+nbstrp <- 10  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -163,8 +163,7 @@ nmc <- 100  # number of mc samples for each bootstrap sample
 
 syst <- system.time(
 preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
-                                 nmc = nmc, var_lst = c('hs','tm2'),
-				 nbstrp = nbstrp,
+                                 nmc = nmc, var_lst = c('hs','tm2'), nbstrp = nbstrp,
                                  covarstr_lst = c('Pdir','doy'),
                                  grid_interval = list('Pdir'=1, 'doy'=1))
 )
