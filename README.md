@@ -89,7 +89,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   2.633   0.006   2.639
+    ##   2.780   0.004   2.785
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -189,7 +189,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   9.968  12.460  13.729  14.898  15.508  83.130
+    ##   10.19   12.49   13.76   14.71   15.65   95.95
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -302,7 +302,7 @@ ggplot() +
   geom_density_2d(data = df_joint,  aes(x = df_joint$hs, y = df_joint$tm2), color = "red", size = 0.1, breaks = specific_levels) +  # Density lines
   xlim(10, 21) +  # Extent in the x direction
   ylim(5, 14) +  # Extent in the y direction
-  labs(title = "HT2004 predictions vs true annual joint maxima",
+  labs(title = "HT2004 predictions",
        x = "Hs [m]",
        y = "Tm2 [s]",
        fill = "Bin density") +
@@ -389,11 +389,11 @@ RP_p_hmax <- quantile(unlist(hmax_p_lst), exp(-1))
 ylim <- c(0, .3)
 xlim <- c(20, 50)
 # densities
-plot(density(hmax_dist_r, bw=.1), col='black', ylim=ylim, xlim=xlim, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n')
+plot(density(hmax_dist_r, bw=1), col='black', ylim=ylim, xlim=xlim, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n')
 par(new=TRUE)
-plot(density(hmax_dist_f, bw=.1), col='blue', ylim=ylim, xlim=xlim, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n')
+plot(density(hmax_dist_f, bw=1), col='blue', ylim=ylim, xlim=xlim, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n')
 par(new=TRUE)
-plot(density(hmax_dist_p, bw=.1), col='blue', ylim=ylim, xlim=xlim, xlab='Hmax [m]', ylab='Density', main='', lty=2)
+plot(density(hmax_dist_p, bw=1), col='blue', ylim=ylim, xlim=xlim, xlab='Hmax [m]', ylab='Density', main='', lty=2)
 # highest alleged wave
 abline(v = quantile(hmax_dist_r, exp(-1)), col = 'black', lty = 1, lwd = 2)
 abline(v = quantile(hmax_dist_f, exp(-1)), col = 'blue', lty = 1, lwd = 2)
@@ -410,6 +410,69 @@ legend("topright", legend = c("Rayleigh", "Forristall", "Prevesto",
 ![](README_files/figure-gfm/unnamed-chunk-21-1.png)<!-- --> \## Only
 consider subregions on covariate parameter space (e.g. sector, season,
 …)
+
+### subset data for seasonal directional Hmax given a specific parameter subspace
+
+``` r
+# plot Hs against covariate parameter space doy and Pdir
+# Define your interval
+x_min_Pdir_high <- 200
+x_max_Pdir_high <- 250
+
+x_min_Pdir_low <- 130
+x_max_Pdir_low <- 180
+
+plot(ds$Pdir, ds$hs, pch=20, xlab="", ylab="Hs [m]")
+# Add shaded regions
+rect(xleft = x_min_Pdir_high, xright = x_max_Pdir_high,
+     ybottom = par("usr")[3], ytop = par("usr")[4],
+     col = adjustcolor("red", alpha.f = 0.1), border = NA)
+rect(xleft = x_min_Pdir_low, xright = x_max_Pdir_low,
+     ybottom = par("usr")[3], ytop = par("usr")[4],
+     col = adjustcolor("blue", alpha.f = 0.1), border = NA)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+
+``` r
+# choose lowest and highest regions and create subset
+
+hmax_sub_f_lst_low <- NULL
+count<-0
+for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
+  indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
+  keep <- subset(indiv_storm, (indiv_storm$Pdir>x_min_Pdir_high & indiv_storm$Pdir<x_max_Pdir_high))
+  if (dim(keep)[1]>0){
+    count<-count+1
+    hmax_sub_f_lst_low[[count]] <- storm_trajectory_Hmax(keep$hs, keep$tm2,
+                                                         3600, dist='forristall')[1] # 1=mode, 2=mean
+  }
+}
+
+hmax_sub_f_lst_high <- NULL
+count<-0
+for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
+  indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
+  keep <- subset(indiv_storm, (indiv_storm$Pdir>x_min_Pdir_low & indiv_storm$Pdir<x_max_Pdir_low))
+  if (dim(keep)[1]>0){
+    count<-count+1
+    hmax_sub_f_lst_high[[count]] <- storm_trajectory_Hmax(keep$hs, keep$tm2,
+                                                         3600, dist='forristall')[1] # 1=mode, 2=mean
+  }
+}
+
+RP_f_hmax_low <- quantile(unlist(hmax_sub_f_lst_low), exp(-1))
+RP_f_hmax_high <- quantile(unlist(hmax_sub_f_lst_high), exp(-1))
+```
+
+## Print results for low and high sector and omni
+
+``` r
+print(c(RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
+```
+
+    ## 36.78794% 36.78794% 36.78794% 
+    ##  13.50364  21.10000  21.34201
 
 ## Notes
 
