@@ -344,7 +344,7 @@ print(syst)
 
 ```{r fig.width=9, fig.height=9}
 # plot random storm
-vis_sim_storms(res, storm_idx=10, xlim=c(0,13), ylim=c(0,20))
+vis_sim_storms(res, storm_idx=10, xlim=c(0,16), ylim=c(0,20))
 ```
 
 ```{r fig.width=9, fig.height=5}

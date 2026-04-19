@@ -52,7 +52,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  23.287   1.685  24.978
+    ##  23.117   1.637  24.775
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -92,7 +92,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  13.825   0.168  13.997
+    ##  13.223   0.159  13.385
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -203,7 +203,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   10.04   12.77   13.87   15.16   15.53  613.51
+    ##   9.477  12.735  13.871  14.703  15.506 100.557
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -387,7 +387,7 @@ print(syst)
 
 ``` r
 # plot random storm
-vis_sim_storms(res, storm_idx=10, xlim=c(0,13), ylim=c(0,20))
+vis_sim_storms(res, storm_idx=10, xlim=c(0,16), ylim=c(0,20))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
@@ -513,9 +513,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 14.78
-    ## High sector: 25.08
-    ## Omni: 25.48
+    ## Low sector: 16.72
+    ## High sector: 23.44
+    ## Omni: 25.08
 
 ## Notes
 
