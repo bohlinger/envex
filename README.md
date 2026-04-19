@@ -31,7 +31,13 @@ df_ekofisk_red <- df_ekofisk[, c("time", "hs", "wind_speed_10m", "tp", "tm2", "P
 # ds <- df_ekofisk_red[1:87673,]  # 10 yrs
 
 # reduce data for test from 1976-01-01 to 1996-01-01
-ds <- df_ekofisk_red[1:175321,]  # 20 yrs
+# ds <- df_ekofisk_red[1:175321,]  # 20 yrs
+
+# full dataset
+ds <- df_ekofisk_red  # 48 yrs
+
+# number of years covered by original dataset
+nr_of_years <- 48
 
 # choose primary variable
 prime_varstr = 'hs'
@@ -52,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  23.117   1.637  24.775
+    ##  67.091  10.178  77.296
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -83,7 +89,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 100  # e.g. nbstrp = 20 for testing
+nbstrp <- 50  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -92,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  13.223   0.159  13.385
+    ##  17.617   0.160  17.777
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -141,8 +147,6 @@ library(extRemes)
 knots = list(doy = c(0,366), Pdir=c(0,360))
 # indicate variable that needs ppgam weights
 node_str_lst = c('Pdir')
-# number of years covered by original dataset
-nr_of_years <- 48
 
 # threshold range from cross-validation
 thr_range <- list('hs'=c(.75,.85))
@@ -203,7 +207,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   9.477  12.735  13.871  14.703  15.506 100.557
+    ##   11.03   13.50   14.35   14.94   15.54  126.33
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -513,9 +517,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 16.72
-    ## High sector: 23.44
-    ## Omni: 25.08
+    ## Low sector: 16.41
+    ## High sector: 24.14
+    ## Omni: 24.74
 
 ## Notes
 
