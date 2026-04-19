@@ -2,7 +2,7 @@
 output: github_document
 ---
 
-# EnvEx
+# EnvEx - **Env**ironmental **Ex**tremes
 
 <!-- badges: start -->
 <!-- badges: end -->
@@ -349,7 +349,7 @@ vis_sim_storms(res, storm_idx=10, xlim=c(0,13), ylim=c(0,20))
 
 ```{r fig.width=9, fig.height=5}
 # plot simulated peaks and storms
-show_sim_pop(res, xlim=c(2,15), ylim=c(0,23))
+show_sim_pop(res, xlim=c(2,19), ylim=c(0,25))
 ```
 
 ## Compute Hmax given RP peak featuring storms
