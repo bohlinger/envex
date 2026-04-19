@@ -52,7 +52,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  28.231   1.791  30.026
+    ##  24.030   1.608  25.642
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -83,7 +83,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 50  # e.g. nbstrp = 20 for testing
+nbstrp <- 100  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -92,7 +92,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   8.546   0.067   8.616
+    ##  13.572   0.135  13.710
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -145,7 +145,7 @@ node_str_lst = c('Pdir')
 nr_of_years <- 48
 
 # threshold range from cross-validation
-thr_range <- list('hs'=c(.8,.9))
+thr_range <- list('hs'=c(.75,.85))
 
 # define models
 fml_pp <- ~ te(doy, Pdir, bs = c('cc', 'cc'), k = c(4,6))
@@ -203,7 +203,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   10.18   12.70   13.77   14.64   15.29  329.11
+    ##   10.10   12.82   13.92   15.04   15.64  206.16
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -442,7 +442,7 @@ abline(v = quantile(hmax_dist_p, exp(-1)), col = 'blue', lty = 2, lwd = 2)
 abline(v = 23, col = 'red', lty = 1, lwd = 2)
 abline(v = 27, col = 'red', lty = 2, lwd = 2)
 # legend
-legend("topright", legend = c("Rayleigh", "Forristall", "Prevesto",
+legend("topright", legend = c("Rayleigh", "Forristall", "Prevosto",
                               "Alleged highest wave", "Highest observed wave"),
        col = c("black", "blue", "blue", "red", "red"),
        lty = c(1, 1, 2, 2), lwd = c(1, 1, 1, 1, 2))
@@ -513,9 +513,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 12.02
-    ## High sector: 20.70
-    ## Omni: 21.00
+    ## Low sector: 15.16
+    ## High sector: 21.50
+    ## Omni: 24.23
 
 ## Notes
 
