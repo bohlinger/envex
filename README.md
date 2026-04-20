@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  65.142   9.859  75.030
+    ##  62.475   8.634  71.126
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  18.046   0.159  18.208
+    ##  17.144   0.159  17.302
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -207,7 +207,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   10.97   13.45   14.45   15.28   15.89   74.11
+    ##   11.04   13.68   14.53   14.98   15.71   40.02
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -461,11 +461,11 @@ consider subregions on covariate parameter space (e.g. sector, season,
 ``` r
 # plot Hs against covariate parameter space doy and Pdir
 # Define your interval
-x_min_Pdir_high <- 190
-x_max_Pdir_high <- 240
+x_min_Pdir_low <- 190
+x_max_Pdir_low <- 240
 
-x_min_Pdir_low <- 130
-x_max_Pdir_low <- 180
+x_min_Pdir_high <- 130
+x_max_Pdir_high <- 180
 
 plot(ds$Pdir, ds$hs, pch=20, xlab="", ylab="Hs [m]")
 # Add shaded regions
@@ -482,26 +482,26 @@ rect(xleft = x_min_Pdir_low, xright = x_max_Pdir_low,
 ``` r
 # choose lowest and highest regions and create subset
 
-hmax_sub_f_lst_low <- NULL
+hmax_sub_f_lst_high <- NULL
 count<-0
 for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
   indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
   keep <- subset(indiv_storm, (indiv_storm$Pdir>x_min_Pdir_high & indiv_storm$Pdir<x_max_Pdir_high))
   if (dim(keep)[1]>0){
     count<-count+1
-    hmax_sub_f_lst_low[[count]] <- storm_trajectory_Hmax(keep$hs, keep$tm2,
+    hmax_sub_f_lst_high[[count]] <- storm_trajectory_Hmax(keep$hs, keep$tm2,
                                                          3600, dist='forristall')[1] # 1=mode, 2=mean
   }
 }
 
-hmax_sub_f_lst_high <- NULL
+hmax_sub_f_lst_low <- NULL
 count<-0
 for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
   indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
   keep <- subset(indiv_storm, (indiv_storm$Pdir>x_min_Pdir_low & indiv_storm$Pdir<x_max_Pdir_low))
   if (dim(keep)[1]>0){
     count<-count+1
-    hmax_sub_f_lst_high[[count]] <- storm_trajectory_Hmax(keep$hs, keep$tm2,
+    hmax_sub_f_lst_low[[count]] <- storm_trajectory_Hmax(keep$hs, keep$tm2,
                                                          3600, dist='forristall')[1] # 1=mode, 2=mean
   }
 }
@@ -517,9 +517,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 14.57
-    ## High sector: 22.00
-    ## Omni: 22.30
+    ## Low sector: 13.14
+    ## High sector: 22.60
+    ## Omni: 23.00
 
 ## Notes
 

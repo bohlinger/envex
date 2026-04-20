@@ -412,11 +412,11 @@ legend("topright", legend = c("Rayleigh", "Forristall", "Prevosto",
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 # plot Hs against covariate parameter space doy and Pdir
 # Define your interval
-x_min_Pdir_high <- 190
-x_max_Pdir_high <- 240
+x_min_Pdir_low <- 190
+x_max_Pdir_low <- 240
 
-x_min_Pdir_low <- 130
-x_max_Pdir_low <- 180
+x_min_Pdir_high <- 130
+x_max_Pdir_high <- 180
 
 plot(ds$Pdir, ds$hs, pch=20, xlab="", ylab="Hs [m]")
 # Add shaded regions
@@ -432,26 +432,26 @@ rect(xleft = x_min_Pdir_low, xright = x_max_Pdir_low,
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 # choose lowest and highest regions and create subset
 
-hmax_sub_f_lst_low <- NULL
+hmax_sub_f_lst_high <- NULL
 count<-0
 for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
   indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
   keep <- subset(indiv_storm, (indiv_storm$Pdir>x_min_Pdir_high & indiv_storm$Pdir<x_max_Pdir_high))
   if (dim(keep)[1]>0){
     count<-count+1
-    hmax_sub_f_lst_low[[count]] <- storm_trajectory_Hmax(keep$hs, keep$tm2,
+    hmax_sub_f_lst_high[[count]] <- storm_trajectory_Hmax(keep$hs, keep$tm2,
                                                          3600, dist='forristall')[1] # 1=mode, 2=mean
   }
 }
 
-hmax_sub_f_lst_high <- NULL
+hmax_sub_f_lst_low <- NULL
 count<-0
 for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
   indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
   keep <- subset(indiv_storm, (indiv_storm$Pdir>x_min_Pdir_low & indiv_storm$Pdir<x_max_Pdir_low))
   if (dim(keep)[1]>0){
     count<-count+1
-    hmax_sub_f_lst_high[[count]] <- storm_trajectory_Hmax(keep$hs, keep$tm2,
+    hmax_sub_f_lst_low[[count]] <- storm_trajectory_Hmax(keep$hs, keep$tm2,
                                                          3600, dist='forristall')[1] # 1=mode, 2=mean
   }
 }
