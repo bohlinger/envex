@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  62.475   8.634  71.126
+    ##  64.529   8.862  73.412
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  17.144   0.159  17.302
+    ##  16.717   0.162  16.881
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -207,7 +207,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.04   13.68   14.53   14.98   15.71   40.02
+    ##   11.11   13.65   14.55   14.94   15.74   43.88
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -446,8 +446,11 @@ abline(v = quantile(hmax_dist_p, exp(-1)), col = 'blue', lty = 2, lwd = 2)
 abline(v = 23, col = 'red', lty = 1, lwd = 2)
 abline(v = 27, col = 'red', lty = 2, lwd = 2)
 # legend
-legend("topright", legend = c("Rayleigh", "Forristall", "Prevosto",
-                              "Alleged highest wave", "Highest observed wave"),
+legend("topright", legend = c("100yr RL Rayleigh",
+                  "100yr RL Forristall",
+                  "100yr RL Prevosto",
+                  "Alleged highest wave",
+                  "Highest observed wave"),
        col = c("black", "blue", "blue", "red", "red"),
        lty = c(1, 1, 2, 2), lwd = c(1, 1, 1, 1, 2))
 ```
@@ -517,9 +520,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 13.14
-    ## High sector: 22.60
-    ## Omni: 23.00
+    ## Low sector: 13.48
+    ## High sector: 23.78
+    ## Omni: 24.44
 
 ## Notes
 

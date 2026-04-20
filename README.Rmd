@@ -399,8 +399,11 @@ abline(v = quantile(hmax_dist_p, exp(-1)), col = 'blue', lty = 2, lwd = 2)
 abline(v = 23, col = 'red', lty = 1, lwd = 2)
 abline(v = 27, col = 'red', lty = 2, lwd = 2)
 # legend
-legend("topright", legend = c("Rayleigh", "Forristall", "Prevosto",
-                              "Alleged highest wave", "Highest observed wave"),
+legend("topright", legend = c("100yr RL Rayleigh",
+			      "100yr RL Forristall",
+			      "100yr RL Prevosto",
+			      "Alleged highest wave",
+			      "Highest observed wave"),
        col = c("black", "blue", "blue", "red", "red"),
        lty = c(1, 1, 2, 2), lwd = c(1, 1, 1, 1, 2))
 ```
