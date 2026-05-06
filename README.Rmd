@@ -166,7 +166,7 @@ RP <- 100  # return period
 nmc <- 100  # number of mc samples for each bootstrap sample
 
 syst <- system.time(
-preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
+preds_margs_lst <- predict_margs(models_margs, nr_of_years, RP=RP,
                                  nmc = nmc, var_lst = c('hs','tm2'), nbstrp = nbstrp,
                                  covarstr_lst = c('Pdir','doy'),
                                  grid_interval = list('Pdir'=1, 'doy'=1))
@@ -563,7 +563,7 @@ RP <- 100  # return period
 nmc <- 100  # number of mc samples for each bootstrap sample
 
 syst <- system.time(
-preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
+preds_margs_lst <- predict_margs(models_margs, nr_of_years, RP=RP,
                                  nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
                                  covarstr_lst = c('doy'),
                                  grid_interval = list('doy'=1))
@@ -575,7 +575,7 @@ dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
 # 1yr maxima
 # more simulations due to prediction horizont
 syst <- system.time(
-preds_margs_1yr_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=1,
+preds_margs_1yr_lst <- predict_margs(models_margs, nr_of_years, RP=1,
                                      nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
                                      covarstr_lst = c('doy'),
                                      grid_interval = list('doy'=1))

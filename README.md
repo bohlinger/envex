@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  71.844   7.745  79.597
+    ##  73.911   7.011  80.947
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  19.224   0.189  19.416
+    ##  18.967   0.150  19.119
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -189,7 +189,7 @@ RP <- 100  # return period
 nmc <- 100  # number of mc samples for each bootstrap sample
 
 syst <- system.time(
-preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
+preds_margs_lst <- predict_margs(models_margs, nr_of_years, RP=RP,
                                  nmc = nmc, var_lst = c('hs','tm2'), nbstrp = nbstrp,
                                  covarstr_lst = c('Pdir','doy'),
                                  grid_interval = list('Pdir'=1, 'doy'=1))
@@ -207,7 +207,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   10.84   13.61   14.46   14.86   15.72   34.44
+    ##   11.13   13.72   14.63   15.21   15.97   40.18
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -520,9 +520,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 14.20
-    ## High sector: 23.43
-    ## Omni: 23.74
+    ## Low sector: 14.27
+    ## High sector: 23.40
+    ## Omni: 23.57
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -566,7 +566,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  19.247   0.712  19.966
+    ##  20.652   0.717  21.371
 
 ## Plot picking result
 
@@ -631,7 +631,7 @@ RP <- 100  # return period
 nmc <- 100  # number of mc samples for each bootstrap sample
 
 syst <- system.time(
-preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
+preds_margs_lst <- predict_margs(models_margs, nr_of_years, RP=RP,
                                  nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
                                  covarstr_lst = c('doy'),
                                  grid_interval = list('doy'=1))
@@ -643,7 +643,7 @@ dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
 # 1yr maxima
 # more simulations due to prediction horizont
 syst <- system.time(
-preds_margs_1yr_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=1,
+preds_margs_1yr_lst <- predict_margs(models_margs, nr_of_years, RP=1,
                                      nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
                                      covarstr_lst = c('doy'),
                                      grid_interval = list('doy'=1))
