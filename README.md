@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  67.626   8.988  76.647
+    ##  68.495   7.394  75.909
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  17.910   0.174  18.087
+    ##  18.096   0.154  18.251
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -207,7 +207,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   10.80   13.60   14.59   15.14   15.91   73.07
+    ##   11.23   13.71   14.67   15.27   16.02   49.68
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -520,9 +520,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 15.74
-    ## High sector: 25.84
-    ## Omni: 26.57
+    ## Low sector: 14.00
+    ## High sector: 24.00
+    ## Omni: 24.64
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -566,7 +566,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  18.940   0.639  19.584
+    ##  19.194   0.758  19.958
 
 ## Plot picking result
 
@@ -578,7 +578,7 @@ visualize_storm_picking(dfin = df_pick, dfinall = ds_subset,
 
 ![](README_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
 
-## Continue with workflow and boostrap
+## Continue with workflow and bootstrap
 
 ``` r
 # number of bootstrap/resampling steps
@@ -603,10 +603,10 @@ knots <- list(doy = c(0,366))
 thr_range <- list('hs'=c(.75,.85))
 
 # define models
-fml_pp <- ~ te(doy, bs = c('cc'), k = 8)
-fml_gpd <- list(exc ~ te(doy, k = 8, bs=c("cc")),
-                ~ te(doy, k = 8, bs=c("cc")))
-fml_ald <- y ~ te(doy, bs=c("cc"), k=8)
+fml_pp <- ~ te(doy, bs = c('cc'), k = 6)
+fml_gpd <- list(exc ~ te(doy, k = 6, bs=c("cc")),
+                ~ te(doy, k = 6, bs=c("cc")))
+fml_ald <- y ~ te(doy, bs=c("cc"), k=6)
 
 model_fml_thr <- NULL
 model_fml_gpd <- NULL
@@ -637,23 +637,49 @@ preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
                                  grid_interval = list('doy'=1))
 )
 print(syst)
+dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-29-2.png)<!-- -->
+
+``` r
+# predict 1yr results for q3 estimator
+# 1yr maxima
+# more simulations due to prediction horizont
+syst <- system.time(
+preds_margs_1yr_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=1,
+                                     nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
+                                     covarstr_lst = c('doy'),
+                                     grid_interval = list('doy'=1))
+)
+print(syst)
+
+dy_1yr <- diagnose_margs_preds_density(preds_margs_1yr_lst, 'y', bw=.1)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-29-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-29-4.png)<!-- -->
+
+``` r
+rv100_q3 <- quantile(unlist(dy_1yr$maxvals), .99)
 ```
 
 ## Compare results against the “Truth”
 
 ``` r
-dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
-```
+plot(density(unlist(dy$maxvals), bw=.1), xlim = c(0,11), ylim=c(0,1.5),
+     main="", xlab = "y", ylab = "Density")
+par(new=TRUE)
+plot(density(unlist(dy_1yr$maxvals), bw=.1), xlim = c(0,11), ylim=c(0,1.5),
+     main="", xlab = "", ylab = "", xaxt = 'n', yaxt = 'n', lty=2)
+par(new=TRUE)
+plot(density(ds_subset$y, bw=.1), xlim = c(0,11), ylim=c(0,1.5),
+     main="", xlab = "", ylab = "", xaxt = 'n', yaxt = 'n', lty=3)
 
-![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
-
-    ## [1] "summary maxes:"
-    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   7.241   8.199   8.482   8.530   8.807  11.481
-
-``` r
 abline(v = max(df_pick$pots$y), col = "gray", lwd = 2)
+
+# value is known from original full 10000yrs
 abline(v = 8.43, col = "red", lwd = 2)
+
 rvs <- NULL
 for (i in 1:length(dy$maxvals)){
   rvs[[i]] <- quantile(unlist(dy$maxvals[[i]]), exp(-1))
@@ -662,18 +688,24 @@ rv100_q4 <- quantile(unlist(dy$maxvals),exp(-1))  # q4 estimator
 rv100_q2p <- mean(unlist(rvs))  # q'2 estimator
 abline(v = rv100_q2p, col = "blue", lwd = 2)
 abline(v = rv100_q4, col = "paleturquoise2", lwd = 2)
+abline(v = rv100_q3, col = "darkred", lwd = 2)
 
 legend("topright",
-       legend = c("Max observed hs",
+       legend = c("All data",
+                  "Sim annual maxima",
+                  "Sim RP maxima",
+                  "Max observed hs",
                   "RV100 (q'2)",
+                  "RV100 (q3)",
                   "RV100 (q4)",
-                  "Truth"),
-       col = c("gray", "blue", "paleturquoise2", "red"),
+                  "Truth (q3 from data)"),
+       col = c("black", "black", "black", "gray", "blue", "darkred", "paleturquoise2", "red"),
        lwd = 2,
+       lty = c(3,2,1,1,1,1,1,1),
        bty = "n")  # removes box around legend
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-30-2.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
 
 ## Notes
 
