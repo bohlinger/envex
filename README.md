@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  68.495   7.394  75.909
+    ##  71.844   7.745  79.597
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  18.096   0.154  18.251
+    ##  19.224   0.189  19.416
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -207,7 +207,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.23   13.71   14.67   15.27   16.02   49.68
+    ##   10.84   13.61   14.46   14.86   15.72   34.44
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -520,9 +520,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 14.00
-    ## High sector: 24.00
-    ## Omni: 24.64
+    ## Low sector: 14.20
+    ## High sector: 23.43
+    ## Omni: 23.74
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -566,7 +566,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  19.194   0.758  19.958
+    ##  19.247   0.712  19.966
 
 ## Plot picking result
 
@@ -638,11 +638,7 @@ preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
 )
 print(syst)
 dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
-```
 
-![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-29-2.png)<!-- -->
-
-``` r
 # predict 1yr results for q3 estimator
 # 1yr maxima
 # more simulations due to prediction horizont
@@ -655,11 +651,6 @@ preds_margs_1yr_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=1,
 print(syst)
 
 dy_1yr <- diagnose_margs_preds_density(preds_margs_1yr_lst, 'y', bw=.1)
-```
-
-![](README_files/figure-gfm/unnamed-chunk-29-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-29-4.png)<!-- -->
-
-``` r
 rv100_q3 <- quantile(unlist(dy_1yr$maxvals), .99)
 ```
 
@@ -690,7 +681,7 @@ abline(v = rv100_q2p, col = "blue", lwd = 2)
 abline(v = rv100_q4, col = "paleturquoise2", lwd = 2)
 abline(v = rv100_q3, col = "darkred", lwd = 2)
 
-legend("topright",
+legend("topleft",
        legend = c("All data",
                   "Sim annual maxima",
                   "Sim RP maxima",
