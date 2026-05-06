@@ -469,6 +469,133 @@ RP_f_hmax_high <- quantile(unlist(hmax_sub_f_lst_high), exp(-1))
 cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
+
+## Apply to synthetic, univariate, non-stationary data
+
+```{r fig.width=9, fig.height=5}
+# load 50yrs of data with WB 3 parameter distributed storm peaks
+# including seasonal cycle and auto-correlation of \lambda=1
+data(ds_subset)
+
+# plot density
+plot(density(ds_subset$y, bw=.01),
+     xlim=c(-0.1,10), ylim=c(0,.5), col='orange',
+     main="", xlab="", ylab="Density")
+```
+
+## Apply envex pipeline
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# number of years covered by dataset
+nr_of_years <- 50
+
+# choose primary variable
+prime_varstr = 'y'
+
+# make formula
+formula_string <- paste(prime_varstr, "~ te(doy, bs = c('cc'), k = 8)")
+peak_picking_thr_model_fml <- as.formula(formula_string)
+
+
+# decorrelation time scale of 1 day
+# this corresponds to 24 consecutive x values
+system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
+                                    decorrelation_time_scale = 24,
+                                    idx=TRUE, time_str='x', var_str='y'))
+
+```
+
+## Plot picking result
+```{r fig.width=9, fig.height=5}
+visualize_storm_picking(dfin = df_pick, dfinall = ds_subset,
+                        xstr = "x", ystr = prime_varstr,
+                        sidx = 1, eidx = 4200, ylim=c(0,8))
+```
+
+## Continue with workflow and boostrap
+```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+# number of bootstrap/resampling steps
+nbstrp <- 50  # e.g. nbstrp = 20 for testing
+
+system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
+                                                   group_col = "storm_idx",
+                                                   n_boot = nbstrp,
+                                                   max_var = prime_varstr))
+
+bstrp_storms_lst <- res_bstrp$boot_samples
+bstrp_pots_lst <- res_bstrp$boot_max
+
+library(ppgam)
+library(extraDistr)
+library(ggplot2)
+library(extRemes)
+# define knots for cyclic splines
+knots <- list(doy = c(0,366))
+
+# threshold range from cross-validation
+thr_range <- list('hs'=c(.75,.85))
+
+# define models
+fml_pp <- ~ te(doy, bs = c('cc'), k = 8)
+fml_gpd <- list(exc ~ te(doy, k = 8, bs=c("cc")),
+                ~ te(doy, k = 8, bs=c("cc")))
+fml_ald <- y ~ te(doy, bs=c("cc"), k=8)
+
+model_fml_thr <- NULL
+model_fml_gpd <- NULL
+model_fml_occ <- NULL
+model_fml_occ[['y']] <- fml_pp
+model_fml_thr[['y']] <- fml_ald
+model_fml_gpd[['y']] <- fml_gpd
+
+syst <- system.time(
+models_margs <- fit_margs_bstrp(bstrp_pots_lst,
+                                model_fml_thr, model_fml_occ, model_fml_gpd,
+                                extr_thr=thr_range, nr_of_years,
+                                thr_str = 'thr',
+                                list_var = c('y'),
+                                nbstrp = nbstrp,
+                                nquad = 225,
+                                knots = knots)
+)
+print(syst)
+
+RP <- 100  # return period
+nmc <- 100  # number of mc samples for each bootstrap sample
+
+syst <- system.time(
+preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
+                                 nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
+                                 covarstr_lst = c('doy'),
+                                 grid_interval = list('doy'=1))
+)
+print(syst)
+```
+
+## Compare results against the "Truth"
+```{r fig.width=9, fig.height=5}
+dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
+
+abline(v = max(df_pick$pots$y), col = "gray", lwd = 2)
+abline(v = 8.43, col = "red", lwd = 2)
+rvs <- NULL
+for (i in 1:length(dy$maxvals)){
+  rvs[[i]] <- quantile(unlist(dy$maxvals[[i]]), exp(-1))
+}
+rv100_q4 <- quantile(unlist(dy$maxvals),exp(-1))  # q4 estimator
+rv100_q2p <- mean(unlist(rvs))  # q'2 estimator
+abline(v = rv100_q2p, col = "blue", lwd = 2)
+abline(v = rv100_q4, col = "paleturquoise2", lwd = 2)
+
+legend("topright",
+       legend = c("Max observed hs",
+                  "RV100 (q'2)",
+                  "RV100 (q4)",
+                  "Truth"),
+       col = c("gray", "blue", "paleturquoise2", "red"),
+       lwd = 2,
+       bty = "n")  # removes box around legend
+```
+
 ## Notes
 
 ## License

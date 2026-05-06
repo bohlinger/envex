@@ -1,4 +1,4 @@
-#' Contains synthetic data
+#' Contains synthetic data with WB3p shape of 2 and lambda = 1
 #'
 #' @format A data frame with 3 variables and 438000 rows:
 #'  \describe{

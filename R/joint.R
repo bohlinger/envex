@@ -307,7 +307,6 @@ fit_margs_bstrp <- function(dfin,
                             family_gpd = 'gpd2') {
   #' @export
   #'
-  margs <- NULL
 
   if (is.null(list_var)) {
     list_var <- names(model_fml_thr)
@@ -570,12 +569,24 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
     shapes <- gpd_param_sims$shape
 
     for (i in 1:nmc){
-      gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
-                       threshold = thr, type = "GP")
-      max_idx <- which(gpd_sims == max(gpd_sims))
+      # HERE
+      #gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
+      #                 threshold = thr, type = "GP")
+      #gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
+      #                 threshold = 0, type = "GP")
+      #max_idx <- which(gpd_sims == max(gpd_sims))
+
+      # HERE
+      gpd_sims <- rgpd(length(scales), mu = 0, sigma = scales, xi = shapes)
+      res_sims <- rgpd(length(scales), mu = thr, sigma = scales, xi = shapes)
+
+      max_idx <- which(res_sims == max(res_sims))
 
       # Save maximum
-      max_val <- gpd_sims[max_idx]
+      # HERE
+      #max_val <- gpd_sims[max_idx] + thr[max_idx]
+      #max_val <- gpd_sims[max_idx]
+      max_val <- res_sims[max_idx]
       max_scale <- scales[max_idx]
       max_shape <- shapes[max_idx]
       thr_max <- thr[max_idx]
@@ -588,8 +599,11 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
         df_pred_cov <- df_storm_cov[max_idx, ]
       }
 
-      gpd_prob <- pevd(max_val, scale = max_scale, shape = max_shape,
-                       threshold = thr_max, type = "GP", lower.tail = TRUE)
+      # HERE
+      #gpd_prob <- pevd(max_val, scale = max_scale, shape = max_shape,
+      #                 threshold = thr_max, type = "GP", lower.tail = TRUE)
+      gpd_prob <- pevd(gpd_sims[max_idx], scale = max_scale, shape = max_shape,
+                       threshold = 0, type = "GP", lower.tail = TRUE)
 
       # store in output field
       df_max$maxval[i] <- max_val

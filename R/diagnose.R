@@ -19,10 +19,14 @@ diagnose_margs_gpd <- function(margs, dfin, var_str = "hs", exc_str = "exc") {
     gpd_param_sims <- predict(m_gpd, newdata = dfin, type = "response")
     scales <- gpd_param_sims$scale
     shapes <- gpd_param_sims$shape
-    gpd_sims[b, ] <- revd(length(scales), scale = scales, shape = shapes,
-                          threshold = thr, type = "GP")
     gpd_sims_exc[b, ] <- revd(length(scales), scale = scales, shape = shapes,
                              threshold = 0, type = "GP")
+    gpd_sims[b, ] <- gpd_sims_exc[b,] + thr
+    # HERE
+    #gpd_sims[b, ] <- revd(length(scales), scale = scales, shape = shapes,
+    #                      threshold = thr, type = "GP")
+    #gpd_sims_exc[b, ] <- revd(length(scales), scale = scales, shape = shapes,
+    #                         threshold = 0, type = "GP")
   }
 
   qs <- c(seq(.1, .99, .05), .995, .999)

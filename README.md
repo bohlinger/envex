@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  64.529   8.862  73.412
+    ##  67.626   8.988  76.647
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  16.717   0.162  16.881
+    ##  17.910   0.174  18.087
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -207,7 +207,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.11   13.65   14.55   14.94   15.74   43.88
+    ##   10.80   13.60   14.59   15.14   15.91   73.07
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -520,9 +520,160 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 13.48
-    ## High sector: 23.78
-    ## Omni: 24.44
+    ## Low sector: 15.74
+    ## High sector: 25.84
+    ## Omni: 26.57
+
+## Apply to synthetic, univariate, non-stationary data
+
+``` r
+# load 50yrs of data with WB 3 parameter distributed storm peaks
+# including seasonal cycle and auto-correlation of \lambda=1
+data(ds_subset)
+
+# plot density
+plot(density(ds_subset$y, bw=.01),
+     xlim=c(-0.1,10), ylim=c(0,.5), col='orange',
+     main="", xlab="", ylab="Density")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+
+## Apply envex pipeline
+
+``` r
+# number of years covered by dataset
+nr_of_years <- 50
+
+# choose primary variable
+prime_varstr = 'y'
+
+# make formula
+formula_string <- paste(prime_varstr, "~ te(doy, bs = c('cc'), k = 8)")
+peak_picking_thr_model_fml <- as.formula(formula_string)
+
+
+# decorrelation time scale of 1 day
+# this corresponds to 24 consecutive x values
+system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
+                                    decorrelation_time_scale = 24,
+                                    idx=TRUE, time_str='x', var_str='y'))
+```
+
+    ## [1] "apply threshold model to data"
+    ## [1] "label storms"
+    ## [1] "combine and relabel storm peaks that are too close"
+    ## [1] "find peaks for combined storms"
+
+    ##    user  system elapsed 
+    ##  18.940   0.639  19.584
+
+## Plot picking result
+
+``` r
+visualize_storm_picking(dfin = df_pick, dfinall = ds_subset,
+                        xstr = "x", ystr = prime_varstr,
+                        sidx = 1, eidx = 4200, ylim=c(0,8))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+
+## Continue with workflow and boostrap
+
+``` r
+# number of bootstrap/resampling steps
+nbstrp <- 50  # e.g. nbstrp = 20 for testing
+
+system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
+                                                   group_col = "storm_idx",
+                                                   n_boot = nbstrp,
+                                                   max_var = prime_varstr))
+
+bstrp_storms_lst <- res_bstrp$boot_samples
+bstrp_pots_lst <- res_bstrp$boot_max
+
+library(ppgam)
+library(extraDistr)
+library(ggplot2)
+library(extRemes)
+# define knots for cyclic splines
+knots <- list(doy = c(0,366))
+
+# threshold range from cross-validation
+thr_range <- list('hs'=c(.75,.85))
+
+# define models
+fml_pp <- ~ te(doy, bs = c('cc'), k = 8)
+fml_gpd <- list(exc ~ te(doy, k = 8, bs=c("cc")),
+                ~ te(doy, k = 8, bs=c("cc")))
+fml_ald <- y ~ te(doy, bs=c("cc"), k=8)
+
+model_fml_thr <- NULL
+model_fml_gpd <- NULL
+model_fml_occ <- NULL
+model_fml_occ[['y']] <- fml_pp
+model_fml_thr[['y']] <- fml_ald
+model_fml_gpd[['y']] <- fml_gpd
+
+syst <- system.time(
+models_margs <- fit_margs_bstrp(bstrp_pots_lst,
+                                model_fml_thr, model_fml_occ, model_fml_gpd,
+                                extr_thr=thr_range, nr_of_years,
+                                thr_str = 'thr',
+                                list_var = c('y'),
+                                nbstrp = nbstrp,
+                                nquad = 225,
+                                knots = knots)
+)
+print(syst)
+
+RP <- 100  # return period
+nmc <- 100  # number of mc samples for each bootstrap sample
+
+syst <- system.time(
+preds_margs_lst <- predict_margs(models_margs, nr_yrs_subdata, RP=RP,
+                                 nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
+                                 covarstr_lst = c('doy'),
+                                 grid_interval = list('doy'=1))
+)
+print(syst)
+```
+
+## Compare results against the “Truth”
+
+``` r
+dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
+
+    ## [1] "summary maxes:"
+    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+    ##   7.241   8.199   8.482   8.530   8.807  11.481
+
+``` r
+abline(v = max(df_pick$pots$y), col = "gray", lwd = 2)
+abline(v = 8.43, col = "red", lwd = 2)
+rvs <- NULL
+for (i in 1:length(dy$maxvals)){
+  rvs[[i]] <- quantile(unlist(dy$maxvals[[i]]), exp(-1))
+}
+rv100_q4 <- quantile(unlist(dy$maxvals),exp(-1))  # q4 estimator
+rv100_q2p <- mean(unlist(rvs))  # q'2 estimator
+abline(v = rv100_q2p, col = "blue", lwd = 2)
+abline(v = rv100_q4, col = "paleturquoise2", lwd = 2)
+
+legend("topright",
+       legend = c("Max observed hs",
+                  "RV100 (q'2)",
+                  "RV100 (q4)",
+                  "Truth"),
+       col = c("gray", "blue", "paleturquoise2", "red"),
+       lwd = 2,
+       bty = "n")  # removes box around legend
+```
+
+![](README_files/figure-gfm/unnamed-chunk-30-2.png)<!-- -->
 
 ## Notes
 
