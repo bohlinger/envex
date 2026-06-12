@@ -294,8 +294,10 @@ fit_margs_bstrp <- function(dfin,
                             extr_thr, nr_of_years,
                             thr_str = "thr",
                             list_var = NULL,
+                            list_covar = NULL,
                             margs_thr_orig = NULL,
                             margs_gpd_orig = NULL,
+                            margs_occ_orig = NULL,
                             nbstrp = NULL,
                             nquad = 40,
                             knots = NULL,
@@ -304,7 +306,9 @@ fit_margs_bstrp <- function(dfin,
                             interval = NULL,
                             nodes = NULL,
                             node_str_lst = NULL,
-                            family_gpd = 'gpd2') {
+                            family_gpd = 'gpd2',
+                            family_occ = 'pois',
+                            grid_in = NULL) {
   #' @export
   #'
 
@@ -343,37 +347,25 @@ fit_margs_bstrp <- function(dfin,
                                          knots = knots,
                                          family = family_gpd)
 
-    # define weights (wts) and nodes given knots (mids and breaks)
-    # if wts are not given equal weighting is assumed
-    if (is.null(nodes)) {
-      nodes <- NULL
-      #if (is.null(node_str_lst)){node_str_lst <- names(knots)}
-      for (n in names(knots)){
-        if (is.null(interval[[n]])) {
-          interval[[n]] <- 1
-        }
-        if (n %in% node_str_lst) {
-          print("computing weights and creating nodes")
-          mids <- seq(min(knots[[n]]), max(knots[[n]]), interval[[n]])
-          llims <- mids - interval[[n]] / 2
-          breaks <- c(llims, llims[length(llims)] + interval[[n]])
-          tmphist <- hist(data_sub[[list_var[1]]][[n]], breaks = breaks, plot = FALSE)
-          wts <- tmphist$counts / sum(tmphist$counts)
-          nodes[[n]] = cbind(mids, wts)
-          # occurrences only depend on prime-variable and same for all variables
-          # which is why I just use [[list_var[1]]
-        }
-      }
-    }
-
     print("fit occ model")
-    margs_occ <- fit_marginal_models_occ(dfin = data_sub,
-                                         list_var = list_var,
-                                         model_fml = model_fml_occ,
-                                         nr_of_years = nr_of_years,
-                                         nquad = nquad,
-                                         knots = knots,
-                                         nodes = nodes)
+    if (family_occ == 'pois'){
+      margs_occ <- fit_marginal_models_pois(data_sub, model_fml_occ,
+                                            list_var = list_var,
+                                            list_covar = list_covar,
+                                            knots = knots,
+                                            breaks = breaks,
+                                            m_params = margs_occ_orig)
+    } else if(family_occ == 'pp'){
+      margs_occ <- fit_marginal_models_occ(dfin = data_sub,
+                                           list_var = list_var,
+                                           model_fml = model_fml_occ,
+                                           nr_of_years = nr_of_years,
+                                           nquad = nquad,
+                                           knots = knots,
+                                           node_str_lst = node_str_lst,
+                                           nodes = nodes,
+                                           interval = interval)
+    }
 
     probs <- compute_probs(margs_thr, margs_gpd, dfin = dfin[[i]],
                            list_var = list_var, thr_str = "thr")[["probs"]]
@@ -529,7 +521,9 @@ convert_HT2004_preds_to_original_space <- function(maxds,
 predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
                          covarstr_lst,
                          condition = NULL, grid_interval = NULL,
-                         dfin = NULL) {
+                         dfin = NULL,
+                         family_occ = 'pois',
+                         breaks = NULL) {
   #' @export
   #'
 
@@ -548,12 +542,18 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
   nr_of_events <- length(tmp[tmp > 0])
   rm(tmp)
 
-  df_storm_cov <- produce_storm_occurrences_rejection(nr_of_events, RP, nr_of_years,
-                                                      margs$occ[[varstr]],
-                                                      covarstr_lst,
-                                                      dfin = dfin,
-                                                      condition = condition,
-                                                      grid_interval = grid_interval)
+  if (family_occ == 'pois'){
+    df_storm_cov <- produce_storm_occurrences_pois(margs$occ[[varstr]],
+                                                   breaks, covarstr_lst,
+                                                   RP, nr_of_years)
+  } else if (family_occ == 'pp'){
+    df_storm_cov <- produce_storm_occurrences_rejection(nr_of_events, RP, nr_of_years,
+                                                        margs$occ[[varstr]],
+                                                        covarstr_lst,
+                                                        dfin = dfin,
+                                                        condition = condition,
+                                                        grid_interval = grid_interval)
+  }
 
   if (dim(df_storm_cov)[1] > 0) {
     # predict from ALD
@@ -628,7 +628,9 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
 predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
                           var_lst = NULL, nbstrp = NULL,
                           covarstr_lst,
-                          condition = NULL, grid_interval = NULL) {
+                          condition = NULL, grid_interval = NULL,
+                          family_occ = 'pois',
+                          breaks = NULL) {
   #' @export
   #'
 
@@ -651,7 +653,9 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
                             covarstr_lst,
                             condition = condition,
                             grid_interval = grid_interval,
-                            dfin = dfin)
+                            dfin = dfin,
+                            family_occ = family_occ,
+                            breaks = breaks)
       preds_tmp_lst[[var_lst[n]]] <- preds
     }
     preds_lst[[b]] <- preds_tmp_lst

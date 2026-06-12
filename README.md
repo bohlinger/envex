@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  73.911   7.011  80.947
+    ##  65.824   5.948  71.849
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  18.967   0.150  19.119
+    ##  18.286   0.103  18.398
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -177,7 +177,8 @@ models_margs <- fit_margs_bstrp(bstrp_pots_lst,
                                 nbstrp = nbstrp,
                                 nquad = 225,
                                 knots = knots,
-                                node_str_lst = node_str_lst)
+                                node_str_lst = node_str_lst,
+                                family_occ = 'pp')
 )
 print(syst)
 ```
@@ -192,7 +193,8 @@ syst <- system.time(
 preds_margs_lst <- predict_margs(models_margs, nr_of_years, RP=RP,
                                  nmc = nmc, var_lst = c('hs','tm2'), nbstrp = nbstrp,
                                  covarstr_lst = c('Pdir','doy'),
-                                 grid_interval = list('Pdir'=1, 'doy'=1))
+                                 grid_interval = list('Pdir'=1, 'doy'=1),
+                                 family_occ = 'pp')
 )
 print(syst)
 ```
@@ -207,7 +209,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.13   13.72   14.63   15.21   15.97   40.18
+    ##   11.80   14.32   15.50   16.28   17.12   61.90
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -520,9 +522,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 14.27
-    ## High sector: 23.40
-    ## Omni: 23.57
+    ## Low sector: 17.58
+    ## High sector: 25.54
+    ## Omni: 26.30
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -557,7 +559,7 @@ peak_picking_thr_model_fml <- as.formula(formula_string)
 # this corresponds to 24 consecutive x values
 system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
                                     decorrelation_time_scale = 24,
-                                    idx=TRUE, time_str='x', var_str='y'))
+                                    idx=TRUE, time_str='x', var_str=prime_varstr))
 ```
 
     ## [1] "apply threshold model to data"
@@ -566,7 +568,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  20.652   0.717  21.371
+    ##  17.835   0.882  18.718
 
 ## Plot picking result
 
@@ -577,6 +579,41 @@ visualize_storm_picking(dfin = df_pick, dfinall = ds_subset,
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+
+## Perform cross-validation
+
+``` r
+# crossvalidation settings #####################################################
+fml_gpd <- list(exc ~ te(doy, k=c(6), bs=c("cc")),
+                ~ te(doy, k=c(6), bs=c("cc")))
+fml_ald <- y ~ te(doy, bs=c("cc"), k=c(6))
+
+model_fml_thr <- NULL
+model_fml_gpd <- NULL
+model_fml_thr[[prime_varstr]] <- fml_ald
+model_fml_gpd[[prime_varstr]] <- fml_gpd
+
+extr_thr_lst <- seq(.4,.98,.02)
+
+### do crossvalidation error metric based ######################################
+cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
+                          extr_thr_lst = extr_thr_lst,
+                          varstr = prime_varstr,
+                          model_fml_thr = model_fml_thr,
+                          model_fml_gpd = model_fml_gpd,
+                          knots = knots,
+                          tailfrac = .05)
+```
+
+# Visualize cross-validation results
+
+``` r
+plot_cvres(cvres)
+```
+
+    ## [1] 0.88 0.88
+
+![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
 
 ## Continue with workflow and bootstrap
 
@@ -623,7 +660,8 @@ models_margs <- fit_margs_bstrp(bstrp_pots_lst,
                                 list_var = c('y'),
                                 nbstrp = nbstrp,
                                 nquad = 225,
-                                knots = knots)
+                                knots = knots,
+                                family_occ = 'pp')
 )
 print(syst)
 
@@ -632,9 +670,11 @@ nmc <- 100  # number of mc samples for each bootstrap sample
 
 syst <- system.time(
 preds_margs_lst <- predict_margs(models_margs, nr_of_years, RP=RP,
-                                 nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
+                                 nmc = nmc, var_lst = c('y'),
+                                 nbstrp = nbstrp,
                                  covarstr_lst = c('doy'),
-                                 grid_interval = list('doy'=1))
+                                 grid_interval = list('doy'=1),
+                                 family_occ = 'pp')
 )
 print(syst)
 dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
@@ -644,9 +684,11 @@ dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
 # more simulations due to prediction horizont
 syst <- system.time(
 preds_margs_1yr_lst <- predict_margs(models_margs, nr_of_years, RP=1,
-                                     nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
+                                     nmc = nmc, var_lst = c('y'),
+                                     nbstrp = nbstrp,
                                      covarstr_lst = c('doy'),
-                                     grid_interval = list('doy'=1))
+                                     grid_interval = list('doy'=1),
+                                     family_occ = 'pp')
 )
 print(syst)
 
@@ -696,7 +738,7 @@ legend("topleft",
        bty = "n")  # removes box around legend
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
 
 ## Notes
 

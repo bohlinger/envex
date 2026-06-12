@@ -154,7 +154,8 @@ models_margs <- fit_margs_bstrp(bstrp_pots_lst,
                                 nbstrp = nbstrp,
                                 nquad = 225,
                                 knots = knots,
-                                node_str_lst = node_str_lst)
+                                node_str_lst = node_str_lst,
+                                family_occ = 'pp')
 )
 print(syst)
 ```
@@ -169,7 +170,8 @@ syst <- system.time(
 preds_margs_lst <- predict_margs(models_margs, nr_of_years, RP=RP,
                                  nmc = nmc, var_lst = c('hs','tm2'), nbstrp = nbstrp,
                                  covarstr_lst = c('Pdir','doy'),
-                                 grid_interval = list('Pdir'=1, 'doy'=1))
+                                 grid_interval = list('Pdir'=1, 'doy'=1),
+                                 family_occ = 'pp')
 )
 print(syst)
 ```
@@ -500,7 +502,7 @@ peak_picking_thr_model_fml <- as.formula(formula_string)
 # this corresponds to 24 consecutive x values
 system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
                                     decorrelation_time_scale = 24,
-                                    idx=TRUE, time_str='x', var_str='y'))
+                                    idx=TRUE, time_str='x', var_str=prime_varstr))
 
 ```
 
@@ -509,6 +511,35 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
 visualize_storm_picking(dfin = df_pick, dfinall = ds_subset,
                         xstr = "x", ystr = prime_varstr,
                         sidx = 1, eidx = 4200, ylim=c(0,8))
+```
+
+## Perform cross-validation
+```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide', fig.keep='none'}
+# crossvalidation settings #####################################################
+fml_gpd <- list(exc ~ te(doy, k=c(6), bs=c("cc")),
+                ~ te(doy, k=c(6), bs=c("cc")))
+fml_ald <- y ~ te(doy, bs=c("cc"), k=c(6))
+
+model_fml_thr <- NULL
+model_fml_gpd <- NULL
+model_fml_thr[[prime_varstr]] <- fml_ald
+model_fml_gpd[[prime_varstr]] <- fml_gpd
+
+extr_thr_lst <- seq(.4,.98,.02)
+
+### do crossvalidation error metric based ######################################
+cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
+                          extr_thr_lst = extr_thr_lst,
+                          varstr = prime_varstr,
+                          model_fml_thr = model_fml_thr,
+                          model_fml_gpd = model_fml_gpd,
+                          knots = knots,
+                          tailfrac = .05)
+```
+
+# Visualize cross-validation results
+```{r fig.width=9, fig.height=5}
+plot_cvres(cvres)
 ```
 
 ## Continue with workflow and bootstrap
@@ -555,7 +586,8 @@ models_margs <- fit_margs_bstrp(bstrp_pots_lst,
                                 list_var = c('y'),
                                 nbstrp = nbstrp,
                                 nquad = 225,
-                                knots = knots)
+                                knots = knots,
+                                family_occ = 'pp')
 )
 print(syst)
 
@@ -564,9 +596,11 @@ nmc <- 100  # number of mc samples for each bootstrap sample
 
 syst <- system.time(
 preds_margs_lst <- predict_margs(models_margs, nr_of_years, RP=RP,
-                                 nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
+                                 nmc = nmc, var_lst = c('y'),
+                                 nbstrp = nbstrp,
                                  covarstr_lst = c('doy'),
-                                 grid_interval = list('doy'=1))
+                                 grid_interval = list('doy'=1),
+                                 family_occ = 'pp')
 )
 print(syst)
 dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
@@ -576,9 +610,11 @@ dy <- diagnose_margs_preds_density(preds_margs_lst, 'y', bw=.1)
 # more simulations due to prediction horizont
 syst <- system.time(
 preds_margs_1yr_lst <- predict_margs(models_margs, nr_of_years, RP=1,
-                                     nmc = nmc, var_lst = c('y'), nbstrp = nbstrp,
+                                     nmc = nmc, var_lst = c('y'),
+                                     nbstrp = nbstrp,
                                      covarstr_lst = c('doy'),
-                                     grid_interval = list('doy'=1))
+                                     grid_interval = list('doy'=1),
+                                     family_occ = 'pp')
 )
 print(syst)
 

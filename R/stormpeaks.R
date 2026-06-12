@@ -14,6 +14,38 @@ round_to_nearest <- function(x, interval, offset) {
   return(wrapped)
 }
 
+generate_prediction_grid <- function(var_breaks, var_lst, nr_sim){
+  # Validate inputs
+  stopifnot(all(var_lst %in% names(var_breaks)))
+
+  # For each variable, sample uniformly between the innermost valid breaks
+  pred_list <- lapply(var_lst, function(var) {
+    breaks <- var_breaks[[var]]
+    runif(nr_sim, min = breaks[2], max = breaks[length(breaks) - 1])
+  })
+  names(pred_list) <- var_lst
+
+  return(as.data.frame(pred_list))
+}
+
+produce_storm_occurrences_pois <- function(model, breaks, covar_lst, RP, nr_of_years) {
+
+  nr_per_year <- nrow(model$data) / nr_of_years
+  nr_sim      <- rpois(1, nr_per_year * RP)
+
+  newdfin <- generate_prediction_grid(breaks, covar_lst, nr_sim)
+
+  preds_lambda <- exp(predict(model, newdata = newdfin)$location)
+  newdfin$counts <- rpois(n = length(preds_lambda), lambda = preds_lambda)
+
+  # Unfold: repeat each row according to its count
+  #df_unfolded <- newdfin[rep(seq_len(nrow(newdfin)), times = newdfin$counts), covar_lst]
+  df_unfolded <- newdfin[rep(seq_len(nrow(newdfin)), times = newdfin$counts), covar_lst, drop = FALSE]
+  rownames(df_unfolded) <- NULL
+
+  return(df_unfolded)
+}
+
 produce_storm_occurrences_rejection <- function(nr_of_events, RP,
                                       nr_of_years,
                                       model_nr_of_events,
@@ -279,6 +311,7 @@ fit_marginal_models_gpd <- function(dfin, model_fml, list_var = NULL,
                                     knots = NULL, trace = 0) {
   #' @export
   #'
+
   margs <- NULL
   if (is.null(list_var)) {
     list_var <- names(model_fml)
@@ -299,12 +332,35 @@ fit_marginal_models_gpd <- function(dfin, model_fml, list_var = NULL,
 
 fit_marginal_models_occ <- function(dfin, model_fml, nr_of_years,
                                     list_var = NULL, nquad = 48, m_params = NULL,
-                                    knots = NULL, nodes = NULL) {
+                                    knots = NULL, node_str_lst = NULL,
+                                    nodes = NULL, interval = NULL) {
   #' @export
   #'
   margs <- NULL
   if (is.null(list_var)) {
     list_var <- names(model_fml)
+  }
+
+  # define weights (wts) and nodes given knots (mids and breaks)
+  # if wts are not given equal weighting is assumed
+  if (is.null(nodes)) {
+    nodes <- NULL
+    for (n in names(knots)){
+      if (is.null(interval[[n]])) {
+        interval[[n]] <- 1
+      }
+      if (n %in% node_str_lst) {
+        print("computing weights and creating nodes")
+        mids <- seq(min(knots[[n]]), max(knots[[n]]), interval[[n]])
+        llims <- mids - interval[[n]] / 2
+        breaks <- c(llims, llims[length(llims)] + interval[[n]])
+        tmphist <- hist(dfin[[list_var[1]]][[n]], breaks = breaks, plot = FALSE)
+        wts <- tmphist$counts / sum(tmphist$counts)
+        nodes[[n]] = cbind(mids, wts)
+        # occurrences only depend on prime-variable and same for all variables
+        # which is why I just use [[list_var[1]]
+      }
+    }
   }
 
   for (n in list_var) {
@@ -315,16 +371,16 @@ fit_marginal_models_occ <- function(dfin, model_fml, nr_of_years,
                           data = dfin[[n]],
                           weights = nr_of_years * dim(dfin[[1]])[1],
                           nquad = nquad,
-                          knots = knots,
-                          nodes = nodes)
+                          knots = knots[[n]],
+                          nodes = nodes[[n]])
     } else {
       margs[[n]] <- ppgam(model_fml[[n]],
                           data = dfin[[n]],
                           weights = nr_of_years * dim(dfin[[1]])[1],
                           sp = m_params[[n]]$sp,
                           nquad = nquad,
-                          knots = knots,
-                          nodes = nodes)
+                          knots = knots[[n]],
+                          nodes = nodes[[n]])
     }
     margs[[n]][["nodes"]] <- nodes
     margs[[n]][["knots"]] <- knots
@@ -332,9 +388,51 @@ fit_marginal_models_occ <- function(dfin, model_fml, nr_of_years,
   return (margs)
 }
 
-fit_marginal_models_pois <- function(dfin, model_fml, nr_of_years,
-                                     list_var = NULL, nquad = 48, m_params = NULL,
-                                     knots = NULL, nodes = NULL) {
+prepare_evgam_pois_grid <- function(dfin, var_breaks, variables) {
+
+    # Validate inputs
+    stopifnot(all(variables %in% names(dfin)))
+    stopifnot(all(variables %in% names(var_breaks)))
+
+    # Bin each variable
+    for (var in variables) {
+      breaks <- var_breaks[[var]]
+      bin_col <- paste0(var, "_bin")
+      dfin[[bin_col]] <- cut(dfin[[var]], breaks = breaks, include.lowest = TRUE)
+    }
+
+    # Build table of counts over all bin columns
+    bin_cols <- paste0(variables, "_bin")
+    grid_counts <- table(dfin[, bin_cols, drop = FALSE])
+
+    # Convert to dataframe
+    grid_df <- as.data.frame(grid_counts)
+    names(grid_df) <- c(bin_cols, "counts")
+
+    # Compute midpoints for each variable
+    mids_list <- lapply(variables, function(var) {
+      breaks <- var_breaks[[var]]
+      (head(breaks, -1) + tail(breaks, -1)) / 2
+    })
+    names(mids_list) <- variables
+
+    # Replace bin factor columns with numeric midpoints
+    for (var in variables) {
+      bin_col <- paste0(var, "_bin")
+      grid_df[[var]] <- mids_list[[var]][as.integer(grid_df[[bin_col]])]
+      grid_df[[bin_col]] <- NULL
+    }
+
+    # Reorder: variables first, then counts
+    grid_df <- grid_df[, c(variables, "counts")]
+
+    return(grid_df)
+  }
+
+fit_marginal_models_pois <- function(data_sub, model_fml,
+                                     list_var = NULL, m_params = NULL,
+                                     knots = NULL, list_covar = NULL,
+                                     breaks = NULL) {
   #' @export
   #'
   margs <- NULL
@@ -345,23 +443,20 @@ fit_marginal_models_pois <- function(dfin, model_fml, nr_of_years,
   for (n in list_var) {
     print(c("fit occurrence model for", n))
 
+    # prepare gridded dataset
+    grid_in <- prepare_evgam_pois_grid(
+      dfin      = data_sub[[n]],
+      var_breaks = breaks,
+      variables  = list_covar
+    )
+
     if (is.null(m_params)) {
-      margs[[n]] <- ppgam(model_fml[[n]],
-                          data = dfin[[n]],
-                          weights = nr_of_years * dim(dfin[[1]])[1],
-                          nquad = nquad,
-                          knots = knots,
-                          nodes = nodes)
+      margs[[n]] <- evgam(model_fml[[n]], grid_in, family = 'poisson',
+                          knots = knots)
     } else {
-      margs[[n]] <- ppgam(model_fml[[n]],
-                          data = dfin[[n]],
-                          weights = nr_of_years * dim(dfin[[1]])[1],
-                          sp = m_params[[n]]$sp,
-                          nquad = nquad,
-                          knots = knots,
-                          nodes = nodes)
+      margs[[n]] <- evgam(model_fml[[n]], grid_in, family = 'poisson',
+                          knots = knots, sp = m_params[[n]]$sp)
     }
-    margs[[n]][["nodes"]] <- nodes
     margs[[n]][["knots"]] <- knots
   }
   return (margs)

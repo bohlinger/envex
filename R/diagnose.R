@@ -221,6 +221,65 @@ diagnose_margs_occ_rejection_bstrp_2D <- function(margs, varstr, nbins, covarlst
     }
 }
 
+diagnose_margs_occ_pois <- function(mpois, xstr='doy', ystr='Pdir', zstr='counts',
+                                    colorbar_intervals=10){
+  occ_df <- as.data.frame(mpois$data)
+
+  # Compute fitted and observed values
+  fitted_vals   <- exp(unlist(fitted(mpois)))
+  observed_vals <- mpois$data[[zstr]]
+
+  # Global range across both plots
+  global_min <- min(c(fitted_vals, observed_vals))
+  global_max <- max(c(fitted_vals, observed_vals))
+  zlim       <- c(global_min, global_max)
+  legend_labs <- round(seq(global_min, global_max, length.out = colorbar_intervals))
+
+  par(mfrow = c(1, 2))
+
+  # Simulated/fitted plot
+  occ_df[[zstr]] <- fitted_vals
+  image(
+    x    = sort(unique(occ_df[[xstr]])),
+    y    = sort(unique(occ_df[[ystr]])),
+    z    = matrix(as.numeric(occ_df[[zstr]]), nrow = length(unique(occ_df[[xstr]]))),
+    col  = heat.colors(colorbar_intervals),
+    zlim = zlim,
+    xlab = xstr,
+    ylab = ystr,
+    main = "Simulated 2D Grid Counts"
+  )
+  legend("topright",
+         legend = legend_labs,
+         fill   = heat.colors(colorbar_intervals),
+         title  = "Counts",
+         cex = .6)
+
+  # Observed plot
+  occ_df[[zstr]] <- observed_vals
+  image(
+    x    = sort(unique(occ_df[[xstr]])),
+    y    = sort(unique(occ_df[[ystr]])),
+    z    = matrix(as.numeric(occ_df[[zstr]]), nrow = length(unique(occ_df[[xstr]]))),
+    col  = heat.colors(colorbar_intervals),
+    zlim = zlim,
+    xlab = xstr,
+    ylab = ystr,
+    main = "Observed 2D Grid Counts"
+  )
+  legend("topright",
+         legend = legend_labs,
+         fill   = heat.colors(colorbar_intervals),
+         title  = "Counts",
+         cex = .6)
+
+  # Sanity check
+  print('< Sanity check >')
+  print('----------------')
+  print(c('Nr of observed counts:', sum(observed_vals)))
+  print(c('Nr of simulated counts:', sum(fitted_vals)))
+}
+
 diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, ylim=NULL) {
   #' @export
 
@@ -513,18 +572,22 @@ plot_cvres <- function(cvres, limits = NULL, show_errors = NULL) {
   #'
   # print values of minimum
   print(c(cvres$thr[cvres$cost$costfct1 == min(cvres$cost$costfct1)],
-          cvres$thr[cvres$cost$costfct2 == min(cvres$cost$costfct2)],
+          #cvres$thr[cvres$cost$costfct2 == min(cvres$cost$costfct2)],
           cvres$thr[cvres$cost$costfct3 == min(cvres$cost$costfct3)]))
 
   if (is.null(limits)) {
     # plot mean cost-function
-    par(mfrow = c(1, 3))
-    plot(cvres$thr, cvres$cost$costfct1)
+    par(mfrow = c(1, 2))
+    plot(cvres$thr, cvres$cost$costfct1, xlab = "Threshold", main = "MSE based", ylab = "Costfunction 1")
     abline(v = cvres$thr[cvres$cost$costfct1 == min(cvres$cost$costfct1)])
-    plot(cvres$thr, cvres$cost$costfct2)
-    abline(v = cvres$thr[cvres$cost$costfct2 == min(cvres$cost$costfct2)])
-    plot(cvres$thr, cvres$cost$costfct3)
+    splc1 <- smooth.spline(cvres$thr, cvres$cost$costfct1, df=5)
+    lines(splc1, col = "red", lwd = 2)
+    #plot(cvres$thr, cvres$cost$costfct2)
+    #abline(v = cvres$thr[cvres$cost$costfct2 == min(cvres$cost$costfct2)])
+    plot(cvres$thr, cvres$cost$costfct3, xlab = "Threshold", main = "MAE based", ylab = "Costfunction 2")
     abline(v = cvres$thr[cvres$cost$costfct3 == min(cvres$cost$costfct3)])
+    splc3 <- smooth.spline(cvres$thr, cvres$cost$costfct3, df=5)
+    lines(splc3, col = "red", lwd = 2)
 
   } else {
     # Add the shaded region
@@ -534,16 +597,20 @@ plot_cvres <- function(cvres, limits = NULL, show_errors = NULL) {
     polygon_x <- c(x1, x2, x2, x1)
     polygon_y <- c(-1000, -1000, 1000, 1000) # Extend to the plot limits vertically
     # plot mean cost-function
-    par(mfrow = c(1, 3))
-    plot(cvres$thr, cvres$cost$costfct1)
+    par(mfrow = c(1, 2))
+    plot(cvres$thr, cvres$cost$costfct1, xlab = "Threshold", main = "MSE based", ylab = "Costfunction 1")
     polygon(polygon_x, polygon_y, col = rgb(0.6, 0.6, 0.6, 0.3), border = NA)
-    abline(v = cvres$thr[cvres$cost$costfct1 == min(cvres$cost$costfct1)])
-    plot(cvres$thr, cvres$cost$costfct2)
-    polygon(polygon_x, polygon_y, col = rgb(0.6, 0.6, 0.6, 0.3), border = NA)
-    abline(v = cvres$thr[cvres$cost$costfct2 == min(cvres$cost$costfct2)])
-    plot(cvres$thr, cvres$cost$costfct3)
+    abline(v = cvres$thr[cvres$cost$costfct1 == -min(cvres$cost$costfct1)])
+    splc1 <- smooth.spline(cvres$thr, cvres$cost$costfct1, df=5)
+    lines(splc1, col = "red", lwd = 2)
+    #plot(cvres$thr, cvres$cost$costfct2)
+    #polygon(polygon_x, polygon_y, col = rgb(0.6, 0.6, 0.6, 0.3), border = NA)
+    #abline(v = cvres$thr[cvres$cost$costfct2 == min(cvres$cost$costfct2)])
+    plot(cvres$thr, cvres$cost$costfct3, xlab = "Threshold", main = "MAE based", ylab = "Costfunction 2")
     polygon(polygon_x, polygon_y, col = rgb(0.6, 0.6, 0.6, 0.3), border = NA)
     abline(v = cvres$thr[cvres$cost$costfct3 == min(cvres$cost$costfct3)])
+    splc3 <- smooth.spline(cvres$thr, cvres$cost$costfct3, df=5)
+    lines(splc3, col = "red", lwd = 2)
   }
 
   if (!is.null(show_errors)) {
@@ -749,4 +816,14 @@ show_sim_pop <- function(res, xlim=c(0,15), ylim=c(0,25), steepness=FALSE){
     lty = c(NA, NA, 1, NA),        # line styles
     lwd = c(NA, NA, 1, NA)
   )
+}
+
+plot_cvres_distr <- function(cvres, ylim=NULL) {
+  #' Plots the results from the cross-validation procedure
+  #' @export
+  #'
+  par(mfrow = c(1, 3))
+  boxplot(cvres$all_score, names = cvres$thr, main = "all score", ylim=ylim)
+  boxplot(cvres$rt_score, names = cvres$thr, main = "rt score", ylim=ylim)
+  boxplot(cvres$crps_score, names = cvres$thr, main = "crps score", ylim=ylim)
 }

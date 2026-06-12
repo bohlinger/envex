@@ -424,3 +424,357 @@ cross_validation <- function(dfin, nr_cv, extr_thr_lst, varstr,
   return(list("cost" = cost, "errors" = errors, "thr" = extr_thr_lst,
               "mean_sample_size" = mean_sample_size, "tailfrac" = tailfrac))
 }
+
+simple_prediction_thr <- function(dfin, extr_thr, varstr,
+                                  model_fml_thr, knots) {
+  #' @export
+  print("fit threshold model")
+  margs_thr_orig <- NULL
+  margs_thr_orig[[varstr]] <- evgam(model_fml_thr[[varstr]], dfin,
+                          family = "ald",
+                          ald.args = list(tau = extr_thr),
+                          knots = knots)
+
+  data_sub_orig <- subset_df(margs_thr_orig, thr_str = "thr", exc_str = "exc")
+
+  # predict threshold
+  thr_pred <- predict(margs_thr_orig[[varstr]], newdata = data_sub_orig[[varstr]],
+                      type = "response")$location
+
+  return(list('thr_pred'=thr_pred, 'data_sub'=data_sub_orig))
+}
+
+simple_prediction_gpd <- function(dfin, varstr,
+                                  model_fml_gpd, knots) {
+  #' @export
+  # fit gpd
+  margs_gpd_orig <- fit_marginal_models_gpd(dfin = dfin,
+                                            model_fml = model_fml_gpd,
+                                            list_var = varstr,
+                                            knots = knots)
+  # predict exceedance)
+  gpd_param_preds <- predict(margs_gpd_orig[[varstr]], newdata = dfin[[varstr]], type = "response")
+  scales <- gpd_param_preds$scale
+  shapes <- gpd_param_preds$shape
+  gpd_pred <- revd(as.numeric(length(scales)), scale = scales, shape = shapes, threshold = 0, type = "GP")
+
+  return(list('gpd_pred'=gpd_pred))
+}
+
+cross_validation_distr_simple <- function(dfin, extr_thr, varstr,
+                                          model_fml_thr, model_fml_gpd,
+                                          knots) {
+
+  res_thr <- simple_prediction_thr(dfin, extr_thr, varstr,
+                                   model_fml_thr, knots)
+
+  res_gpd <- simple_prediction_gpd(res_thr$data_sub, varstr,
+                                   model_fml_gpd, knots)
+
+  var_pred <- res_thr$thr_pred + res_gpd$gpd_pred
+
+  cv_score_lst <- crps_samples(var_pred, res_thr$data_sub[[varstr]][[varstr]])
+
+  return(list('score'=cv_score_lst, 'gpd_pred'=var_pred, 'data'=res_thr$data_sub[[varstr]][[varstr]]))
+}
+
+cross_validation_distr <- function(dfin, nr_cv, extr_thr_lst, varstr,
+                                   model_fml_thr, model_fml_gpd,
+                                   knots, tail_cut=.1) {
+
+  chunked_df <- divide_data_into_k(dfin, nr_cv)
+
+  all_score_lst <- NULL
+  rt_score_lst <- NULL
+  crps_score_lst <- NULL
+
+  for (i in 1:length(extr_thr_lst)){
+    extr_thr <- extr_thr_lst[i]
+
+    all_score <- NULL
+    rt_score <- NULL
+    crps_score <- NULL
+
+    for (j in 1:nr_cv){
+      print("###")
+      print(c("extr_thr:", extr_thr))
+      print(c("cross-validation step:", j))
+      print("###")
+
+      chunk_train_lst <- NULL
+      res_extr_lst_tmp <- NULL
+      for (c in 1:nr_cv){
+        if (c != j) {
+          chunk_train_lst[[c]] <- chunked_df[[c]]
+        }
+      }
+      chunk_train_df <- do.call(rbind, chunk_train_lst)
+      chunk_test_df <- chunked_df[[j]]
+
+      cvres_distr <- cross_validation_distr_simple(dfin = dfin,
+                                                   extr_thr = extr_thr_lst[i],
+                                                   varstr = varstr,
+                                                   model_fml_thr = model_fml_thr,
+                                                   model_fml_gpd = model_fml_gpd,
+                                                   knots = knots)
+
+      cvres_ts <- tail_score(cvres_distr$gpd_pred, cvres_distr$data, tail_cut = tail_cut)
+
+      all_score[[j]] <- cvres_ts$score
+      rt_score[[j]] <- cvres_ts$right_score
+      crps_score[[j]] <- cvres_distr$score
+    }
+    all_score_lst[[i]] <- unlist(all_score)
+    rt_score_lst[[i]] <- unlist(rt_score)
+    crps_score_lst[[i]] <- unlist(crps_score)
+  }
+  return(list('all_score'=all_score_lst, 'rt_score'=rt_score_lst, 'crps_score'=crps_score_lst, 'thr'=extr_thr_lst))
+}
+
+# ============================================================
+# Distribution Comparison Scores
+# - crps_samples():     CRPS between two empirical distributions
+# - tail_score():       Tail similarity score (Anderson-Darling-based)
+# ============================================================
+
+
+# ------------------------------------------------------------
+# CRPS for two empirical distributions (sample vs sample)
+#
+# Uses the energy-score identity:
+#   CRPS(F, G) = E|X - Y| - 0.5 * E|X - X'| - 0.5 * E|Y - Y'|
+#
+# Args:
+#   x        : numeric vector — "forecast" / reference samples
+#   y        : numeric vector — "observation" / target samples
+#   method   : "pwm"  → O(n log n), recommended (default)
+#              "exact"→ O(n²),  brute-force pairwise; use for small n
+#
+# Returns: scalar CRPS value (lower = more similar; 0 = identical)
+# ------------------------------------------------------------
+crps_samples <- function(x, y, method = "pwm") {
+  #' @export
+
+  stopifnot(is.numeric(x), is.numeric(y),
+            as.numeric(length(x)) >= 2, as.numeric(length(y)) >= 2)
+
+  method <- match.arg(method, c("pwm", "exact"))
+
+  # Internal helper: E|X - X'| via sorted PWM (O(n log n))
+  # Identity: E|X-X'| = 2 * sum_i x_(i) * (2i - n - 1) / (n*(n-1))
+  mean_abs_diff_pwm <- function(v) {
+    n <- as.numeric(length(v))
+    v <- sort(v)
+    i <- seq_len(n)
+    2 * sum(v * (2 * i - n - 1)) / (n * (n - 1))
+  }
+
+  # Internal helper: E|X - X'| brute force (O(n²))
+  mean_abs_diff_exact <- function(v) {
+    mean(abs(outer(v, v, "-")))
+  }
+
+  if (method == "pwm") {
+    # E|X - Y|: combine and use sorted trick across joint samples
+    # (exact cross-term via sorting both arrays)
+    cross_term <- mean_abs_cross(x, y)
+    self_x     <- mean_abs_diff_pwm(x)
+    self_y     <- mean_abs_diff_pwm(y)
+  } else {
+    cross_term <- mean(abs(outer(x, y, "-")))
+    self_x     <- mean_abs_diff_exact(x)
+    self_y     <- mean_abs_diff_exact(y)
+  }
+
+  cross_term - 0.5 * self_x - 0.5 * self_y
+}
+
+# O(n log n) cross-term E|X - Y| using sorted merge
+mean_abs_cross <- function(x, y) {
+  #' @export
+  nx <- as.numeric(length(x)); ny <- as.numeric(length(y))
+  x  <- sort(x);   y  <- sort(y)
+
+  # Use the identity:
+  #   sum_{i,j} |x_i - y_j| = sum_i x_i*(2*rank_in_merged(x_i) - nx - 1)
+  #                          + sum_j y_j*(2*rank_in_merged(y_j) - ny - 1)
+  # where rank_in_merged counts position among all (nx+ny) values.
+  combined <- c(x, y)
+  labels   <- c(rep(1L, nx), rep(2L, ny))
+  ord      <- order(combined)
+  combined <- combined[ord]
+  labels   <- labels[ord]
+
+  # Running counts of how many x and y values have been seen so far
+  cx <- cumsum(labels == 1L)   # # of x values <= combined[k]
+  cy <- cumsum(labels == 2L)   # # of y values <= combined[k]
+
+  total <- 0
+  for (k in seq_along(combined)) {
+    if (labels[k] == 1L) {
+      # x value: contributes x_k * (cy[k] below) - x_k * (ny - cy[k] above)
+      # = x_k * (2*cy[k] - ny)  ... but cy[k] here counts y values < or = x_k
+      total <- total + combined[k] * (2 * cy[k] - ny)
+    } else {
+      total <- total + combined[k] * (2 * cx[k] - nx)
+    }
+  }
+  total / (nx * ny)
+}
+
+
+# ------------------------------------------------------------
+# Tail Similarity Score
+#
+# Quantifies how similar the *tails* of two distributions are.
+# Strategy: weighted KS-type statistic that up-weights tail regions.
+#
+# Two components are combined:
+#   1. Left tail score  — focuses on quantiles [0, tail_cut]
+#   2. Right tail score — focuses on quantiles [1-tail_cut, 1]
+#
+# Each component is the weighted L2 distance between the two ECDFs,
+# with weight w(u) = 1 / (u * (1-u))  (Anderson-Darling weight),
+# which diverges at 0 and 1, giving heavy emphasis to extremes.
+#
+# The final score is normalised to [0, 1]:  0 = identical tails, 1 = max diff.
+#
+# Args:
+#   x         : numeric vector (distribution 1)
+#   y         : numeric vector (distribution 2)
+#   tail_cut  : quantile threshold defining "tail" region (default 0.10)
+#   n_grid    : number of quantile grid points (default 500)
+#   normalize : if TRUE (default), returns score in [0,1] via
+#               comparison to a reference worst-case
+#
+# Returns: list with
+#   $score       overall tail similarity (0 = identical, 1 = maximally different)
+#   $left_score  left-tail component
+#   $right_score right-tail component
+#   $detail      data.frame of quantile grid and per-point contributions
+# ------------------------------------------------------------
+tail_score <- function(x, y,
+                       tail_cut  = 0.10,
+                       n_grid    = 500,
+                       normalize = TRUE) {
+  #' @export
+
+  stopifnot(is.numeric(x), is.numeric(y),
+            as.numeric(length(x)) >= 10, as.numeric(length(y)) >= 10,
+            tail_cut > 0, tail_cut < 0.5)
+
+  # Empirical quantile functions
+  qx <- function(p) quantile(x, probs = p, type = 8)
+  qy <- function(p) quantile(y, probs = p, type = 8)
+
+  # Anderson-Darling weight (clamped to avoid Inf at boundaries)
+  ad_weight <- function(u, eps = 1e-4) {
+    u <- pmax(eps, pmin(1 - eps, u))
+    1 / (u * (1 - u))
+  }
+
+  # Weighted L2 distance on a quantile grid restricted to [lo, hi]
+  tail_distance <- function(lo, hi) {
+    probs <- seq(lo, hi, length.out = n_grid)
+    w     <- ad_weight(probs)
+    w     <- w / sum(w)                     # normalise weights
+    dx    <- qx(probs) - qy(probs)
+    sum(w * dx^2)
+  }
+
+  left_raw  <- tail_distance(0.001,         tail_cut)
+  right_raw <- tail_distance(1 - tail_cut,  0.999)
+  combined  <- 0.5 * (left_raw + right_raw)
+
+  if (normalize) {
+    # Reference: compare x to its own mirror image shifted by 2*sd(x)
+    # This gives a stable, data-adaptive worst-case baseline
+    ref   <- c(x, 2 * mean(x) - x + 2 * sd(x))   # reflected + shifted copy
+    ref_q <- function(p) quantile(ref, probs = p, type = 8)
+
+    ref_dist <- function(lo, hi) {
+      probs <- seq(lo, hi, length.out = n_grid)
+      w     <- ad_weight(probs)
+      w     <- w / sum(w)
+      dx    <- qx(probs) - ref_q(probs)
+      sum(w * dx^2)
+    }
+    ref_left  <- ref_dist(0.001,        tail_cut)
+    ref_right <- ref_dist(1 - tail_cut, 0.999)
+    ref_comb  <- 0.5 * (ref_left + ref_right)
+
+    left_score  <- min(1, left_raw  / ref_left)
+    right_score <- min(1, right_raw / ref_right)
+    score       <- min(1, combined  / ref_comb)
+  } else {
+    left_score  <- left_raw
+    right_score <- right_raw
+    score       <- combined
+  }
+
+  # Detail data.frame for plotting / inspection
+  probs  <- seq(0.001, 0.999, length.out = n_grid)
+  is_tail <- (probs <= tail_cut) | (probs >= 1 - tail_cut)
+  detail <- data.frame(
+    quantile     = probs,
+    q_x          = qx(probs),
+    q_y          = qy(probs),
+    diff         = qx(probs) - qy(probs),
+    ad_weight    = ad_weight(probs),
+    in_tail      = is_tail
+  )
+
+  list(
+    score       = score,
+    left_score  = left_score,
+    right_score = right_score,
+    detail      = detail
+  )
+}
+
+
+# ------------------------------------------------------------
+# Convenience: compare a list of distributions pairwise
+#
+# Args:
+#   dists  : named list of numeric vectors
+#   metric : "crps", "tail", or "both"
+#   ...    : extra args forwarded to crps_samples() or tail_score()
+#
+# Returns: matrix (or list of matrices) of pairwise scores
+# ------------------------------------------------------------
+pairwise_scores <- function(dists, metric = "both", ...) {
+  #' @export
+
+  stopifnot(is.list(dists), as.numeric(length(dists)) >= 2)
+  nms <- names(dists)
+  if (is.null(nms)) nms <- paste0("D", seq_along(dists))
+  n <- as.numeric(length(dists))
+
+  make_mat <- function() {
+    m <- matrix(0, n, n, dimnames = list(nms, nms))
+    m
+  }
+
+  compute <- function(fn) {
+    m <- make_mat()
+    for (i in seq_len(n)) {
+      for (j in seq_len(n)) {
+        if (i != j) m[i, j] <- fn(dists[[i]], dists[[j]])
+      }
+    }
+    m
+  }
+
+  if (metric == "crps") {
+    return(compute(function(a, b) crps_samples(a, b, ...)))
+  }
+  if (metric == "tail") {
+    return(compute(function(a, b) tail_score(a, b, ...)$score))
+  }
+  # both
+  list(
+    crps = compute(function(a, b) crps_samples(a, b, ...)),
+    tail = compute(function(a, b) tail_score(a, b, ...)$score)
+  )
+}
