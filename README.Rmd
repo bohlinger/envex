@@ -107,12 +107,6 @@ for (b in seq_len(nbstrp-1)) {
 plot(density(bstrp_pots_lst[[b+1]]$hs, bw=.1), xlim=c(0,15), ylim=c(0.,.5), main = "", xlab = "Hs", ylab = "Density")
 ```
 
-## Cross-validation for best threshold range
-
-```{r echo=TRUE, message=FALSE, warning=FALSE}
-# possibly some figure on cross-validation
-```
-
 ## Model the non-stationary storm peaks
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
@@ -539,7 +533,7 @@ cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
 
 # Visualize cross-validation results
 ```{r fig.width=9, fig.height=5}
-plot_cvres(cvres)
+plot_cvres(cvres, limits = c(.8, .92))
 ```
 
 ## Continue with workflow and bootstrap
