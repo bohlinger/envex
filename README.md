@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  63.049  10.440  73.498
+    ##  62.071   5.609  67.692
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  17.765   0.103  17.884
+    ##  16.751   0.133  16.886
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -203,7 +203,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.16   13.99   15.01   15.73   16.53   71.25
+    ##   11.32   13.77   14.67   15.03   15.86   35.08
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -516,8 +516,8 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 15.30
-    ## High sector: 24.20
+    ## Low sector: 17.40
+    ## High sector: 24.04
     ## Omni: 24.64
 
 ## Apply to synthetic, univariate, non-stationary data
@@ -562,7 +562,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  18.048   0.330  18.388
+    ##  17.808   0.378  18.193
 
 ## Plot picking result
 
@@ -605,7 +605,7 @@ cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
 plot_cvres(cvres, limits = c(.8, .92))
 ```
 
-    ## [1] 0.88 0.88
+    ## [1] 0.9 0.9
 
 ![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
@@ -734,9 +734,28 @@ legend("topleft",
 
 ![](README_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
 
+## The numbers for comparison rounded to 2 desimals
+
+``` r
+cat(sprintf("Truthr: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
+            8.43, rv100_q2p, rv100_q3, rv100_q4))
+```
+
+    ## Truthr: 8.43
+    ## q'2: 8.31
+    ## q3: 8.32
+    ## q4: 8.25
+
 ## Notes
 
+- This project was developed as part of the FORESEE project funded by
+  the Norwegian Research Council.
+- For questions, open an issue or contact <patrikb@met.no>.
+
 ## License
+
+This project is licensed under the **MIT License** - see the
+[LICENSE](LICENSE) file for details.
 
 ## Development
 

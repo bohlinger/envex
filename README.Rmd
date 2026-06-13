@@ -407,7 +407,6 @@ legend("topright", legend = c("100yr RL Rayleigh",
 
 ### subset data for seasonal directional Hmax given a specific parameter subspace ###
 
-
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 # plot Hs against covariate parameter space doy and Pdir
 # Define your interval
@@ -657,12 +656,20 @@ legend("topleft",
        bty = "n")  # removes box around legend
 ```
 
+## The numbers for comparison rounded to 2 desimals
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+cat(sprintf("Truthr: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
+            8.43, rv100_q2p, rv100_q3, rv100_q4))
+```
+
 ## Notes
+- This project was developed as part of the FORESEE project funded by the Norwegian Research Council.
+- For questions, open an issue or contact patrikb@met.no.
 
 ## License
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ## Development
-
 To rebuild this README:
 
 ```r
