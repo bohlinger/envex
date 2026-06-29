@@ -43,7 +43,7 @@ nr_of_years <- 48
 prime_varstr = 'hs'
 
 # make formula
-nknots <- c(4, 6)  # c(8, 12), c(6, 8) is default c(4, 6) for testing
+nknots <- c(6, 8)  # c(8, 12), c(6, 8) is default c(4, 6) for testing
 formula_string <- paste(prime_varstr, "~ te(doy, Pdir, bs = c('cc', 'cc'), k = nknots)")
 peak_picking_thr_model_fml <- as.formula(formula_string)
 
@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  63.176   5.357  68.541
+    ## 251.363  25.221 276.633
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -69,7 +69,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
 ``` r
 visualize_storm_picking(dfin = df_pick, dfinall = ds,
                         xstr = "dt", ystr = "hs",
-                        sidx = 1, eidx = 4200)
+                        sidx = 1, eidx = 4100)
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
@@ -89,7 +89,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 50  # e.g. nbstrp = 20 for testing
+nbstrp <- 30  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  18.151   0.137  18.291
+    ##  10.208   0.081  10.290
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -142,15 +142,15 @@ knots = list(doy = c(0,366), Pdir=c(0,360))
 # indicate variable that needs ppgam weights
 node_str_lst = c('Pdir')
 
-# threshold range from cross-validation
-thr_range <- list('hs'=c(.75,.85))
+# pick threshold range list based on cross-validation
+thr_range <- list('hs'=c(.72,.84), 'tm2'=c(.72,.84))
 
 # define models
-fml_pp <- ~ te(doy, Pdir, bs = c('cc', 'cc'), k = c(4,6))
-fml_gpd <- list(exc ~ te(doy, Pdir, k=c(4,6), bs=c("cc","cc")),
-                ~ te(doy, Pdir, k=c(4,6), bs=c("cc","cc")))
-fml_ald <- hs ~ te(doy, Pdir, bs=c("cc","cc"), k=c(4,6))
-fml_ald_tm2 <- tm2 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(4,6))
+fml_pp <- ~ te(doy, Pdir, bs = c('cc', 'cc'), k = c(6,8))
+fml_gpd <- list(exc ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")),
+                ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")))
+fml_ald <- hs ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
+fml_ald_tm2 <- tm2 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
 
 model_fml_thr <- NULL
 model_fml_gpd <- NULL
@@ -203,7 +203,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.15   14.25   15.29   16.07   16.80   84.26
+    ##   11.40   13.22   13.97   14.31   14.97   92.17
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -494,9 +494,9 @@ legend("topright", legend = c("100yr RL Rayleigh",
        lty = c(1, 1, 2, 2), lwd = c(1, 1, 1, 1, 2))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-21-1.png)<!-- --> \## Only
-consider subregions on covariate parameter space (e.g. sector, season,
-…)
+![](README_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+## Only consider subregions on covariate parameter space (e.g. sector, season, …)
 
 ### subset data for seasonal directional Hmax given a specific parameter subspace
 
@@ -559,9 +559,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 15.31
-    ## High sector: 25.60
-    ## Omni: 26.30
+    ## Low sector: 13.41
+    ## High sector: 21.20
+    ## Omni: 22.24
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -605,7 +605,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  19.900   0.293  20.195
+    ##  18.038   0.544  18.585
 
 ## Plot picking result
 
@@ -645,7 +645,7 @@ cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
 # Visualize cross-validation results
 
 ``` r
-plot_cvres(cvres, limits = c(.8, .92))
+plot_cvres(cvres, limits = c(.8, .9))
 ```
 
     ## [1] 0.88 0.88
@@ -656,7 +656,7 @@ plot_cvres(cvres, limits = c(.8, .92))
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 50  # e.g. nbstrp = 20 for testing
+nbstrp <- 30  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -674,7 +674,7 @@ library(extRemes)
 knots <- list(doy = c(0,366))
 
 # threshold range from cross-validation
-thr_range <- list('hs'=c(.75,.85))
+thr_range <- list('hs'=c(.8,.9))
 
 # define models
 fml_pp <- ~ te(doy, bs = c('cc'), k = 6)
@@ -786,7 +786,7 @@ cat(sprintf("Truthr: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
 
     ## Truthr: 8.43
     ## q'2: 8.30
-    ## q3: 8.45
+    ## q3: 8.31
     ## q4: 8.26
 
 ## Notes
