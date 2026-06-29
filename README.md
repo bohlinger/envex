@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  62.071   5.609  67.692
+    ##  63.176   5.357  68.541
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  16.751   0.133  16.886
+    ##  18.151   0.137  18.291
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -203,7 +203,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.32   13.77   14.67   15.03   15.86   35.08
+    ##   11.15   14.25   15.29   16.07   16.80   84.26
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -256,7 +256,7 @@ diagnose_maxds(models_maxds_thr, maxd_thr, 'hs', 'tm2', ylim=c(-1.5, 1.5))
 ## Choose threshold range from test and sample across
 
 ``` r
-maxd_thr_range <- c(.6,.8)
+maxd_thr_range <- c(.9)  # also a range can  be chosen
 syst <- system.time(
 models_maxds <- fit_maxds_bstrp(bstrp_pots_lst,
                                 models_margs,
@@ -289,11 +289,20 @@ diagnose_maxds_fitted(models_maxds[[2]], "hs", "tm2", nsim)
 preds_maxds_LP <- predict_from_HT2004_models(models_margs, models_maxds,
                                              c('tm2','hs'), nbstrp,
                                              preds=preds_margs_lst)
+
 # convert to real space
-preds_maxds <- convert_HT2004_preds_to_original_space(models_maxds,
-                                                      preds_maxds_LP,
-                              preds_margs_lst,
-                                                      var_lst = c("tm2", "hs"))
+preds_maxds <- convert_HT2004_preds_to_original_space(
+                  models_maxds,
+                  preds_maxds_LP,
+                  preds_margs_lst,
+                  var_lst = c("tm2", "hs"))
+
+# reorganize to consolidate
+preds_maxds_LP_new <- reorganize_HT2004_preds(
+                        models_maxds,
+                        preds_maxds_LP,
+                        preds_margs_lst,
+                        var_lst = c("tm2","hs"))
 
 # retrieve valid predicted values according to chosen space
 valids <- retrieve_valid_HT_samples(preds_maxds,
@@ -302,40 +311,74 @@ valids <- retrieve_valid_HT_samples(preds_maxds,
                                     "hs", c("tm2"),
                                     models_maxds = models_maxds)
 
-
-df_joint <- data.frame(unlist(valids$X_valid$tm2), unlist(valids$Y_valid$tm2))
-colnames(df_joint) <- c("hs", "tm2")
-
-dfcovar <- NULL
-for (n in names(valids$covar_valid$tm2[[1]])){
-  dfcovar[[n]] <- NULL
-  for (b in 1:nbstrp){
-    dfcovar[[n]][[b]] <- valids$covar_valid$tm2[[b]][[n]]
-  }
-}
-
-# add covariates
-df_joint[['doy']] <- unlist(dfcovar[['doy']])
-df_joint[['Pdir']] <- unlist(dfcovar[['Pdir']])
+# Filter Laplace to valid HT2004 space only
+out <- filter_preds_maxds(preds_maxds_LP_new,
+                          var_lst = c("u10", "hs", "tm2"),
+                          preds2 = preds_maxds)
+preds_LP_filtered  <- out$preds_filtered
+preds_orig_filtered <- out$preds2_filtered
 ```
 
 ## Plot Joint Distr
 
 ``` r
+library(patchwork)
+library(plotly)
 library(ggplot2)
 library(metR)
-specific_levels <- c(0.01,0.05,0.1)
-ggplot() +
-  geom_bin2d(data = df_joint,  aes(x = df_joint$hs, y = df_joint$tm2), bins = 50) +
-  scale_fill_gradient(low = "white", high = "blue") +  # Color gradient
-  geom_density_2d(data = df_joint,  aes(x = df_joint$hs, y = df_joint$tm2), color = "red", size = 0.1, breaks = specific_levels) +  # Density lines
-  xlim(5, 25) +  # Extent in the x direction
-  ylim(4, 16) +  # Extent in the y direction
-  labs(title = "HT2004 predictions",
-       x = "Hs [m]",
-       y = "Tm2 [s]",
-       fill = "Bin density") +
-  theme_minimal()
+library(MASS)
+
+var_lst <- c("hs", "tm2")
+
+# Prepare dataframes for each case
+df_preds_hs   <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = "hs")
+df_preds_tm2  <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = "tm2")
+df_preds_both <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = c("hs", "tm2"))
+
+# Compute global axis limits across all three datasets
+xlim_global <- range(c(df_preds_hs$tm2,   df_preds_tm2$tm2,   df_preds_both$tm2,   df_pick$pots$tm2))
+ylim_global <- range(c(df_preds_hs$hs,    df_preds_tm2$hs,    df_preds_both$hs,    df_pick$pots$hs))
+
+# Compute global bin breaks across all three datasets
+bins <- 100
+x_breaks <- seq(xlim_global[1], xlim_global[2], length.out = bins + 1)
+y_breaks <- seq(ylim_global[1], ylim_global[2], length.out = bins + 1)
+
+# Helper to get bin counts for a dataframe
+get_bin_counts <- function(df, xvar, yvar, x_breaks, y_breaks) {
+  x_idx <- findInterval(df[[xvar]], x_breaks)
+  y_idx <- findInterval(df[[yvar]], y_breaks)
+  max(table(paste(x_idx, y_idx)))
+}
+
+# Compute global max count for common color scale
+max_count <- max(
+  get_bin_counts(df_preds_hs,   "tm2", "hs", x_breaks, y_breaks),
+  get_bin_counts(df_preds_tm2,  "tm2", "hs", x_breaks, y_breaks),
+  get_bin_counts(df_preds_both, "tm2", "hs", x_breaks, y_breaks)
+)
+
+# Create plots with shared color limits
+clim <- c(0, max_count)
+
+p1 <- plot_preds_2d_gg_shared(df_preds_hs,   xvar = "tm2", yvar = "hs",
+                              df_obs = df_pick$pots,
+                              xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
+                              clim = clim, show_legend = FALSE) +
+  ggtitle("xi = hs")
+
+p2 <- plot_preds_2d_gg_shared(df_preds_tm2,  xvar = "tm2", yvar = "hs",
+                              df_obs = df_pick$pots,
+                              xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
+                              clim = clim, show_legend = FALSE) +
+  ggtitle("xi = tm2")
+
+p3 <- plot_preds_2d_gg_shared(df_preds_both, xvar = "tm2", yvar = "hs",
+                              df_obs = df_pick$pots,
+                              xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
+                              clim = clim, show_legend = TRUE) +
+  ggtitle("xi = hs + tm2")
+print(p1 + p2 + p3 + plot_layout(ncol = 3))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
@@ -345,9 +388,9 @@ ggplot() +
 ``` r
 df_hist_pots <- df_pick$pots
 df_hist_storms <- df_pick$storms
+df_joint_pots <- df_preds_both
 
 # add steepness
-df_joint_pots <- df_joint
 df_hist_pots[['s_tm2']] <- compute_steepness(df_hist_pots$hs, df_hist_pots$tm2)
 df_joint_pots[['s_tm2']] <- compute_steepness(df_joint_pots$hs, df_joint_pots$tm2)
 
@@ -516,9 +559,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 17.40
-    ## High sector: 24.04
-    ## Omni: 24.64
+    ## Low sector: 15.31
+    ## High sector: 25.60
+    ## Omni: 26.30
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -562,7 +605,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  17.808   0.378  18.193
+    ##  19.900   0.293  20.195
 
 ## Plot picking result
 
@@ -605,7 +648,7 @@ cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
 plot_cvres(cvres, limits = c(.8, .92))
 ```
 
-    ## [1] 0.9 0.9
+    ## [1] 0.88 0.88
 
 ![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
@@ -742,9 +785,9 @@ cat(sprintf("Truthr: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
 ```
 
     ## Truthr: 8.43
-    ## q'2: 8.31
-    ## q3: 8.32
-    ## q4: 8.25
+    ## q'2: 8.30
+    ## q3: 8.45
+    ## q4: 8.26
 
 ## Notes
 

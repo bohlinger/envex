@@ -827,3 +827,147 @@ plot_cvres_distr <- function(cvres, ylim=NULL) {
   boxplot(cvres$rt_score, names = cvres$thr, main = "rt score", ylim=ylim)
   boxplot(cvres$crps_score, names = cvres$thr, main = "crps score", ylim=ylim)
 }
+
+plot_preds_2d_gg <- function(df_preds, xvar, yvar,
+                             df_obs = NULL,
+                             bins = 100,
+                             density_levels = c(0.01, 0.05, 0.1),
+                             xlim = NULL, ylim = NULL) {
+  #' 2d visualisation of df_preds point cloud
+  #' @export
+
+  # Set axis limits from data if not provided
+  if (is.null(xlim)) xlim <- range(df_preds[[xvar]])
+  if (is.null(ylim)) ylim <- range(df_preds[[yvar]])
+
+  # Expand limits to include observations if provided
+  if (!is.null(df_obs)) {
+    xlim <- range(c(xlim, df_obs[[xvar]]))
+    ylim <- range(c(ylim, df_obs[[yvar]]))
+  }
+
+  # Compute 2D kernel density manually with MASS::kde2d
+  dens <- MASS::kde2d(df_preds[[xvar]], df_preds[[yvar]], n = 200,
+                      lims = c(xlim, ylim))
+
+  # Convert to long dataframe for ggplot
+  df_dens <- expand.grid(x = dens$x, y = dens$y)
+  df_dens$z <- as.vector(dens$z)
+  names(df_dens)[1:2] <- c(xvar, yvar)
+
+  p <- ggplot() +
+    geom_bin2d(data = df_preds,
+               aes(x = .data[[xvar]], y = .data[[yvar]]),
+               bins = bins) +
+    scale_fill_gradient(low = "white", high = "steelblue") +
+    geom_contour(data = df_dens,
+                 aes(x = .data[[xvar]], y = .data[[yvar]], z = z),
+                 color = "red",
+                 linewidth = 0.3,
+                 breaks = density_levels) +
+    geom_text_contour(data = df_dens,
+                      aes(x = .data[[xvar]], y = .data[[yvar]], z = z),
+                      color = "red",
+                      size = 3,
+                      breaks = density_levels,
+                      skip = 0,
+                      stroke = 0.2) +
+    coord_cartesian(xlim = xlim, ylim = ylim) +
+    labs(x = xvar, y = yvar, fill = "count") +
+    theme_bw()
+
+  if (!is.null(df_obs)) {
+    p <- p + geom_point(data = df_obs,
+                        aes(x = .data[[xvar]], y = .data[[yvar]]),
+                        color = "black", size = 0.3, alpha = 0.6)
+  }
+
+  p
+}
+
+# Update plot_preds_2d_gg to accept fixed color limits and hide colorbar
+plot_preds_2d_gg_shared <- function(df_preds, xvar, yvar,
+                                    df_obs = NULL,
+                                    bins = 100,
+                                    density_levels = c(0.01, 0.05, 0.1),
+                                    xlim = NULL, ylim = NULL,
+                                    clim = NULL,
+                                    show_legend = TRUE) {
+
+  if (is.null(xlim)) xlim <- range(df_preds[[xvar]])
+  if (is.null(ylim)) ylim <- range(df_preds[[yvar]])
+
+  if (!is.null(df_obs)) {
+    xlim <- range(c(xlim, df_obs[[xvar]]))
+    ylim <- range(c(ylim, df_obs[[yvar]]))
+  }
+
+  dens <- MASS::kde2d(df_preds[[xvar]], df_preds[[yvar]], n = 200,
+                      lims = c(xlim, ylim))
+  df_dens <- expand.grid(x = dens$x, y = dens$y)
+  df_dens$z <- as.vector(dens$z)
+  names(df_dens)[1:2] <- c(xvar, yvar)
+
+  p <- ggplot() +
+    geom_bin2d(data = df_preds,
+               aes(x = .data[[xvar]], y = .data[[yvar]]),
+               bins = bins) +
+    scale_fill_gradient(low = "white", high = "steelblue",
+                        limits = clim,
+                        guide = if (show_legend) "colorbar" else "none") +
+    geom_contour(data = df_dens,
+                 aes(x = .data[[xvar]], y = .data[[yvar]], z = z),
+                 color = "red", linewidth = 0.3,
+                 breaks = density_levels) +
+    geom_text_contour(data = df_dens,
+                      aes(x = .data[[xvar]], y = .data[[yvar]], z = z),
+                      color = "red", size = 3,
+                      breaks = density_levels,
+                      skip = 0, stroke = 0.2) +
+    coord_cartesian(xlim = xlim, ylim = ylim) +
+    labs(x = xvar, y = yvar, fill = "count") +
+    theme_bw()
+
+  if (!is.null(df_obs)) {
+    p <- p + geom_point(data = df_obs,
+                        aes(x = .data[[xvar]], y = .data[[yvar]]),
+                        color = "black", size = 0.3, alpha = 0.6)
+  }
+
+  p
+}
+
+plot_ly_3d <- function(df_preds, xvar, yvar, zvar, df_obs = NULL) {
+  #' 3d visualisation of df_preds point cloud
+  #' @export
+
+  p <- plot_ly()
+
+  p <- add_trace(p,
+                 data = df_preds,
+                 x = df_preds[[xvar]], y = df_preds[[yvar]], z = df_preds[[zvar]],
+                 type = "scatter3d", mode = "markers",
+                 name = "predictions",
+                 marker = list(size = 2, color = "steelblue", opacity = 0.4)
+  )
+
+  if (!is.null(df_obs)) {
+    p <- add_trace(p,
+                   data = df_obs,
+                   x = df_obs[[xvar]], y = df_obs[[yvar]], z = df_obs[[zvar]],
+                   type = "scatter3d", mode = "markers",
+                   name = "observed",
+                   marker = list(size = 3, color = "black", opacity = 0.8)
+    )
+  }
+
+  p <- layout(p,
+              scene = list(
+                xaxis = list(title = xvar),
+                yaxis = list(title = yvar),
+                zaxis = list(title = zvar)
+              )
+  )
+
+  p
+}

@@ -166,15 +166,19 @@ compute_probs <- function(margs_thr, margs_gpd, dfin = NULL, list_var = NULL,
   return(list("probs" = probs, "probs_ecdf" = probs_ecdf, "probs_gpd" = probs_gpd))
 }
 
-fit_HT2004 <- function(lp_margs, thr) {
+fit_HT2004 <- function(lp_margs, thr, var_lst = NULL) {
   #' @export
   #'
 
-  maxd <- NULL
-  for (i in seq_along(names(lp_margs))) {
-    list_of_vars <- names(lp_margs)[-i]
+  if (is.null(var_lst)){
+    var_lst <- names(lp_margs)
+  }
 
-    X_fit_str <- names(lp_margs)[i]
+  maxd <- NULL
+  for (i in seq_along(var_lst)) {
+    list_of_vars <- var_lst[-i]
+
+    X_fit_str <- var_lst[i]
     X_fit_tmp <- lp_margs[[X_fit_str]]
     for (n in list_of_vars){
       Y_fit_tmp <- lp_margs[[n]]
@@ -185,13 +189,13 @@ fit_HT2004 <- function(lp_margs, thr) {
                  HT2004_mse, method = "L-BFGS-B",
                  lower = c(0, -100, -100, 0.001),
                  upper = c(1.2, 1.2, 100, 100))
-      maxd[[names(lp_margs)[i]]][[n]][["params"]] <- o
-      maxd[[names(lp_margs)[i]]][[n]][["Z"]] <- (Y_fit - o$par[1] * X_fit) / X_fit**o$par[2]
-      maxd[[names(lp_margs)[i]]][[n]][["X_fit"]] <- X_fit
-      maxd[[names(lp_margs)[i]]][[n]][["Y_fit"]] <- Y_fit
-      maxd[[names(lp_margs)[i]]][[n]][["X_all"]] <- X_fit_tmp
-      maxd[[names(lp_margs)[i]]][[n]][["Y_all"]] <- Y_fit_tmp
-      maxd[[names(lp_margs)[i]]][[n]][["thr"]] <- thr
+      maxd[[X_fit_str]][[n]][["params"]]  <- o
+      maxd[[X_fit_str]][[n]][["Z"]]       <- (Y_fit - o$par[1] * X_fit) / X_fit**o$par[2]
+      maxd[[X_fit_str]][[n]][["X_fit"]]   <- X_fit
+      maxd[[X_fit_str]][[n]][["Y_fit"]]   <- Y_fit
+      maxd[[X_fit_str]][[n]][["X_all"]]   <- X_fit_tmp
+      maxd[[X_fit_str]][[n]][["Y_all"]]   <- Y_fit_tmp
+      maxd[[X_fit_str]][[n]][["thr"]]     <- thr
     }
   }
 
@@ -381,7 +385,7 @@ fit_margs_bstrp <- function(dfin,
   return(margs)
 }
 
-fit_maxds_bstrp <- function(dfin, margs, maxd_thr, nbstrp = NULL) {
+fit_maxds_bstrp <- function(dfin, margs, maxd_thr, nbstrp = NULL, var_lst = NULL) {
   #' @export
   #'
 
@@ -399,7 +403,7 @@ fit_maxds_bstrp <- function(dfin, margs, maxd_thr, nbstrp = NULL) {
   for (b in 1:nbstrp) {
     # print(c("bootstrap nr:",b))
     lp_margs <- compute_lp_margs(margs[[b]]$probs)
-    maxd <- fit_HT2004(lp_margs, thr = t)
+    maxd <- fit_HT2004(lp_margs, thr = t, var_lst = var_lst)
     maxds[[b]] <- maxd
   }
 
@@ -457,9 +461,13 @@ predict_from_HT2004_models <- function(margs, maxds,
       for (m in tmplst) {
         tmp_alpha <- maxds[[b]][[var_lst[n]]][[m]]$params$par[1]
         tmp_beta <- maxds[[b]][[var_lst[n]]][[m]]$params$par[2]
+        tmp_mu <- maxds[[b]][[var_lst[n]]][[m]]$params$par[3]
+        tmp_sig <- maxds[[b]][[var_lst[n]]][[m]]$params$par[4]
+
         tmp_Z <- maxds[[b]][[var_lst[n]]][[m]][["Z"]]
         lp_Y <- tmp_alpha * lp_X + lp_X**(tmp_beta) *
                 tmp_Z[runif_func(length(lp_X), min = 1, max = length(tmp_Z))]
+                #(tmp_Z[runif_func(length(lp_X), min = 1, max = length(tmp_Z))]*tmp_sig+tmp_mu)
         lp_Y_lst_tmp[[m]] <- as.numeric(lp_Y)
       }
 
@@ -509,6 +517,7 @@ convert_HT2004_preds_to_original_space <- function(maxds,
         Y_lst_tmp[[m]] <- qgpd(lp_prob, mu = thr_sim, sigma = scale_sim,
                                xi = shape_sim, lower.tail = TRUE, log.p = FALSE)
       }
+      Y_lst_tmp[[var_lst[n]]] <- maxd_preds$X[[b]][[var_lst[n]]]
       Y_lst[[var_lst[n]]] <- Y_lst_tmp
       covar[[var_lst[n]]] <- maxd_preds$covar[[b]][[var_lst[n]]]
     }
@@ -516,6 +525,158 @@ convert_HT2004_preds_to_original_space <- function(maxds,
     Y_bstrp[[b]][["covar"]] <- covar
   }
   return(Y_bstrp)
+}
+
+reorganize_HT2004_preds <- function(maxds,
+                                    maxd_preds, marg_preds,
+                                    var_lst = NULL,
+                                    nbstrp = NULL) {
+  #' @export
+
+  if (is.null(var_lst)) {
+    var_lst <- names(maxds[[1]])
+  }
+
+  if (is.null(nbstrp)) {
+    nbstrp <- length(marg_preds)
+  }
+
+  Y_bstrp <- NULL
+  for (b in 1:nbstrp) {
+    Y_lst <- NULL
+    covar <- NULL
+    for (n in 1:length(var_lst)) {
+      Y_lst_tmp <- NULL
+      tmplst <- var_lst[-n]
+      for (m in tmplst){
+        Y_lst_tmp[[m]] <- maxd_preds$lp_Y[[b]][[var_lst[n]]][[m]]
+      }
+      Y_lst_tmp[[var_lst[n]]] <- maxd_preds$lp_X[[b]][[var_lst[n]]]
+      Y_lst[[var_lst[n]]] <- Y_lst_tmp
+      covar[[var_lst[n]]] <- maxd_preds$covar[[b]][[var_lst[n]]]
+    }
+    Y_bstrp[[b]] <- Y_lst
+    Y_bstrp[[b]][["covar"]] <- covar
+  }
+  return(Y_bstrp)
+}
+
+filter_preds_maxds <- function(preds, var_lst, preds2 = NULL) {
+
+  result1 <- vector("list", length(preds))
+  result2 <- if (!is.null(preds2)) vector("list", length(preds)) else NULL
+
+  for (b in seq_along(preds)) {
+    result1[[b]] <- setNames(vector("list", length(var_lst)), var_lst)
+    if (!is.null(preds2)) result2[[b]] <- setNames(vector("list", length(var_lst)), var_lst)
+
+    for (xi in var_lst) {
+
+      Xi     <- preds[[b]][[xi]]
+      Xi_ref <- Xi[[xi]]                        # diagonal reference
+
+      # find indices where ALL Xj <= Xi_ref
+      keep_idx <- Reduce("&", lapply(Xi, function(Xj) Xj <= Xi_ref))
+
+      # filter covariates once, reuse for both outputs
+      covar_filtered <- lapply(preds[[b]]$covar[[xi]], function(cov) cov[keep_idx])
+
+      # 1) filter preds and attach covariates
+      result1[[b]][[xi]] <- lapply(Xi, function(Xj) Xj[keep_idx])
+      result1[[b]][[xi]]$covar <- covar_filtered
+
+      # 2) filter preds2 and attach same covariates
+      if (!is.null(preds2)) {
+        result2[[b]][[xi]] <- lapply(preds2[[b]][[xi]], function(Xj) Xj[keep_idx])
+        result2[[b]][[xi]]$covar <- covar_filtered
+      }
+    }
+  }
+
+  # Build output
+  if (!is.null(preds2)) {
+    list(preds_filtered  = result1,
+         preds2_filtered = result2)
+  } else {
+    list(preds_filtered = result1)
+  }
+}
+
+#filter_preds_maxds <- function(preds, var_lst, preds2 = NULL) {
+#  #' @export
+#  result1 <- vector("list", length(preds))
+#  result2 <- if (!is.null(preds2)) vector("list", length(preds)) else NULL
+#  for (b in seq_along(preds)) {
+#    result1[[b]] <- setNames(lapply(var_lst, function(xi) {
+#      Xi <- preds[[b]][[xi]]
+#      Xi_ref <- Xi[[xi]]
+#      # find indices where ALL Xj <= Xi_ref
+#      keep_idx <- Reduce("&", lapply(Xi, function(Xj) Xj <= Xi_ref))
+#      # apply filter to preds
+#      filtered1 <- lapply(Xi, function(Xj) Xj[keep_idx])
+#      # apply same filter to preds2 if provided
+#      if (!is.null(preds2)) {
+#        result2[[b]][[xi]] <<- lapply(preds2[[b]][[xi]], function(Xj) Xj[keep_idx])
+#      }
+#      filtered1
+#    }), var_lst)
+#  }
+#  if (!is.null(preds2)) {
+#    result2 <- lapply(result2, function(b) setNames(b, var_lst))
+#    list(preds_filtered = result1, preds2_filtered = result2)
+#  } else {
+#    result1
+#  }
+#}
+
+# Helper: extract one dataframe from a given bootstrap and xi block
+extract_df <- function(preds2_filtered, b, xi, var_lst) {
+  xi_data <- preds2_filtered[[b]][[xi]]
+  as.data.frame(setNames(
+    lapply(var_lst, function(xj) xi_data[[xj]]),
+    var_lst
+  ))
+}
+
+#prepare_preds_df <- function(preds2_filtered, var_lst, xi_select = NULL) {
+#
+#  # Default to all xi if not specified
+#  if (is.null(xi_select)) xi_select <- var_lst
+#
+#  # Combine all bootstraps and selected xi into one dataframe
+#  do.call(rbind, lapply(xi_select, function(xi)
+#    do.call(rbind, lapply(seq_along(preds2_filtered), function(b)
+#      extract_df(preds2_filtered, b, xi, var_lst)
+#    ))
+#  ))
+#}
+
+prepare_preds_df <- function(preds_filtered, var_lst, xi_select = NULL) {
+
+  # Default to all xi if not specified
+  if (is.null(xi_select)) xi_select <- var_lst
+
+  # Combine all bootstraps and selected xi into one dataframe
+  do.call(rbind, lapply(xi_select, function(xi)
+    do.call(rbind, lapply(seq_along(preds_filtered), function(b) {
+
+      xi_data <- preds_filtered[[b]][[xi]]
+
+      # extract the main variables (excluding covar)
+      df_main <- as.data.frame(setNames(
+        lapply(var_lst, function(xj) xi_data[[xj]]),
+        var_lst
+      ))
+
+      # extract covariates if present and cbind to main df
+      if (!is.null(xi_data$covar)) {
+        df_covar <- as.data.frame(xi_data$covar)
+        df_main  <- cbind(df_main, df_covar)
+      }
+
+      df_main
+    }))
+  ))
 }
 
 predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
@@ -569,23 +730,12 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
     shapes <- gpd_param_sims$shape
 
     for (i in 1:nmc){
-      # HERE
-      #gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
-      #                 threshold = thr, type = "GP")
-      #gpd_sims <- revd(length(scales), scale = scales, shape = shapes,
-      #                 threshold = 0, type = "GP")
-      #max_idx <- which(gpd_sims == max(gpd_sims))
-
-      # HERE
       gpd_sims <- rgpd(length(scales), mu = 0, sigma = scales, xi = shapes)
       res_sims <- rgpd(length(scales), mu = thr, sigma = scales, xi = shapes)
 
       max_idx <- which(res_sims == max(res_sims))
 
       # Save maximum
-      # HERE
-      #max_val <- gpd_sims[max_idx] + thr[max_idx]
-      #max_val <- gpd_sims[max_idx]
       max_val <- res_sims[max_idx]
       max_scale <- scales[max_idx]
       max_shape <- shapes[max_idx]
@@ -599,11 +749,8 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
         df_pred_cov <- df_storm_cov[max_idx, ]
       }
 
-      # HERE
-      #gpd_prob <- pevd(max_val, scale = max_scale, shape = max_shape,
-      #                 threshold = thr_max, type = "GP", lower.tail = TRUE)
-      gpd_prob <- pevd(gpd_sims[max_idx], scale = max_scale, shape = max_shape,
-                       threshold = 0, type = "GP", lower.tail = TRUE)
+      gpd_prob <- pevd(res_sims[max_idx], scale = max_scale, shape = max_shape,
+                       threshold = thr_max, type = "GP", lower.tail = TRUE)
 
       # store in output field
       df_max$maxval[i] <- max_val
@@ -667,11 +814,6 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
                                       varstr_X, varstr_Y, nbstrp = NULL,
                                       region = "default", models_maxds = NULL) {
   #' @export
-
-  # color the valid ones and add
-  # preds_HT <- HT_sims
-  # preds_HT_lp <- preds_HT
-  # preds_margs <- preds_margs_lst
 
   # region: relates to region in LP space where different HT2004 models are
   #         valid/appropriate. X is always assumed to be the conditioning
@@ -844,4 +986,77 @@ retrieve_valid_HT_samples <- function(preds_HT, preds_HT_lp, preds_margs,
   return(list("X_valid" = X_valid, "Y_valid" = Y_valid,
               "X_lp_valid" = X_lp_valid, "Y_lp_valid" = Y_lp_valid,
               "covar_valid" = covar_valid))
+}
+
+retrieve_valid_HT_samples_v2 <- function(preds_HT, preds_HT_lp, preds_margs,
+                                         varstr_X, varstr_Y, nbstrp = NULL,
+                                         region = "default", models_maxds = NULL) {
+  #' @export
+
+  if (is.null(nbstrp)) nbstrp <- length(preds_margs)
+
+  # --- helper: process one bootstrap replicate for one Y variable ----------
+  .process_one_b <- function(b, n) {
+    # seq_along, so every element of varstr_Y is used
+    lp_Y_maxes <- unlist(lapply(seq_along(varstr_Y), function(m)
+      unlist(preds_HT_lp$lp_Y[[b]][[varstr_X]][[m]])))
+
+    lp_X   <- preds_HT_lp$lp_X[[b]][[varstr_X]]
+    lp_Y   <- preds_HT_lp$lp_Y[[b]][[varstr_X]][[n]]
+
+    # derive both index sets from the *original* lp_X before subsetting
+    accept_idx <- which(lp_X >  lp_Y)
+    reject_idx <- which(lp_X <= lp_Y)   # use <= for a clean partition
+
+    covar_names <- names(preds_HT[[b]]$covar[[n]])
+
+    .subset_covar <- function(idx)
+      lapply(setNames(covar_names, covar_names),
+             function(cn) preds_HT[[b]][["covar"]][[n]][[cn]][idx])
+
+    list(
+      X_lp_valid   = lp_X[accept_idx],
+      Y_lp_valid   = lp_Y[accept_idx],
+      X_lp_invalid = lp_X[reject_idx],   # index into originals
+      Y_lp_invalid = lp_Y[reject_idx],
+      Y_valid       = preds_HT[[b]][[varstr_X]][[n]][accept_idx],
+      X_valid       = preds_margs[[b]][[varstr_X]]$maxval[accept_idx],
+      Y_invalid     = preds_HT[[b]][[varstr_X]][[n]][reject_idx],
+      X_invalid     = preds_margs[[b]][[varstr_X]]$maxval[reject_idx],
+      covar_valid   = .subset_covar(accept_idx),
+      covar_invalid = .subset_covar(reject_idx)
+    )
+  }
+
+  # --- helper: process all bootstrap replicates for one Y variable ----------
+  .process_one_n <- function(n) {
+    bs <- lapply(seq_len(nbstrp), .process_one_b, n = n)
+    # Transpose: list-of-replicates → named list-of-fields
+    lapply(setNames(nm = names(bs[[1]])), function(field)
+      lapply(bs, `[[`, field))
+  }
+
+  # --- main: iterate over Y variables ---------------------------------------
+  message("Greater than threshold on X, only valids")
+  results <- lapply(setNames(nm = varstr_Y), .process_one_n)
+
+  # --- reshape output to match original return structure --------------------
+  fields_to_return <- c("X_valid", "Y_valid", "X_lp_valid", "Y_lp_valid", "covar_valid")
+  out <- lapply(setNames(nm = fields_to_return), function(field)
+    lapply(results, `[[`, field))
+
+  out
+}
+
+consolidate_HT2004_preds <- function(preds_maxds){
+  var_lst <- names(preds_maxds[[1]])
+  preds_cons <- NULL
+  for (b in seq_len(preds_maxds)){
+    for (n in var_lst){
+      tmp_lst <- var_lst[-n]
+      for (m in tmp_lst){
+       preds_cons[[m]][[n]][[b]] <- preds_maxds[[b]][[n]][[m]]
+      }
+    }
+  tmp_lst <- var_lst[-n]}
 }
