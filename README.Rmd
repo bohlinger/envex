@@ -558,9 +558,9 @@ visualize_storm_picking(dfin = df_pick, dfinall = ds_subset,
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide', fig.keep='none'}
 # crossvalidation settings #####################################################
-fml_gpd <- list(exc ~ te(doy, k=c(6), bs=c("cc")),
-                ~ te(doy, k=c(6), bs=c("cc")))
-fml_ald <- y ~ te(doy, bs=c("cc"), k=c(6))
+fml_gpd <- list(exc ~ te(doy, k=c(8), bs=c("cc")),
+                ~ te(doy, k=c(8), bs=c("cc")))
+fml_ald <- y ~ te(doy, bs=c("cc"), k=c(8))
 
 model_fml_thr <- NULL
 model_fml_gpd <- NULL
@@ -604,16 +604,16 @@ library(extraDistr)
 library(ggplot2)
 library(extRemes)
 # define knots for cyclic splines
-knots <- list(doy = c(0,366))
+knots <- list(doy = c(0, 366))
 
 # threshold range from cross-validation
-thr_range <- list('hs'=c(.8,.9))
+thr_range <- list('hs'=c(.8, .9))
 
 # define models
-fml_pp <- ~ te(doy, bs = c('cc'), k = 6)
-fml_gpd <- list(exc ~ te(doy, k = 6, bs=c("cc")),
-                ~ te(doy, k = 6, bs=c("cc")))
-fml_ald <- y ~ te(doy, bs=c("cc"), k=6)
+fml_pp <- ~ te(doy, bs = c('cc'), k = 8)
+fml_gpd <- list(exc ~ te(doy, k = 8, bs = c("cc")),
+                ~ te(doy, k = 8, bs = c("cc")))
+fml_ald <- y ~ te(doy, bs=c("cc"), k = 8)
 
 model_fml_thr <- NULL
 model_fml_gpd <- NULL
@@ -711,7 +711,7 @@ legend("topleft",
 ## The numbers for comparison rounded to 2 desimals
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-cat(sprintf("Truthr: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
+cat(sprintf("Truth: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
             8.43, rv100_q2p, rv100_q3, rv100_q4))
 ```
 

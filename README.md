@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ## 251.363  25.221 276.633
+    ## 237.516  24.169 261.761
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  10.208   0.081  10.290
+    ##   9.867   0.077   9.946
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -203,7 +203,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.40   13.22   13.97   14.31   14.97   92.17
+    ##   11.30   13.10   13.94   14.46   15.03   52.22
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -559,9 +559,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 13.41
-    ## High sector: 21.20
-    ## Omni: 22.24
+    ## Low sector: 13.69
+    ## High sector: 23.53
+    ## Omni: 24.70
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -605,7 +605,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  18.038   0.544  18.585
+    ##  17.846   0.630  18.477
 
 ## Plot picking result
 
@@ -621,9 +621,9 @@ visualize_storm_picking(dfin = df_pick, dfinall = ds_subset,
 
 ``` r
 # crossvalidation settings #####################################################
-fml_gpd <- list(exc ~ te(doy, k=c(6), bs=c("cc")),
-                ~ te(doy, k=c(6), bs=c("cc")))
-fml_ald <- y ~ te(doy, bs=c("cc"), k=c(6))
+fml_gpd <- list(exc ~ te(doy, k=c(8), bs=c("cc")),
+                ~ te(doy, k=c(8), bs=c("cc")))
+fml_ald <- y ~ te(doy, bs=c("cc"), k=c(8))
 
 model_fml_thr <- NULL
 model_fml_gpd <- NULL
@@ -648,7 +648,7 @@ cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
 plot_cvres(cvres, limits = c(.8, .9))
 ```
 
-    ## [1] 0.88 0.88
+    ## [1] 0.88 0.86
 
 ![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
@@ -671,16 +671,16 @@ library(extraDistr)
 library(ggplot2)
 library(extRemes)
 # define knots for cyclic splines
-knots <- list(doy = c(0,366))
+knots <- list(doy = c(0, 366))
 
 # threshold range from cross-validation
-thr_range <- list('hs'=c(.8,.9))
+thr_range <- list('hs'=c(.8, .9))
 
 # define models
-fml_pp <- ~ te(doy, bs = c('cc'), k = 6)
-fml_gpd <- list(exc ~ te(doy, k = 6, bs=c("cc")),
-                ~ te(doy, k = 6, bs=c("cc")))
-fml_ald <- y ~ te(doy, bs=c("cc"), k=6)
+fml_pp <- ~ te(doy, bs = c('cc'), k = 8)
+fml_gpd <- list(exc ~ te(doy, k = 8, bs = c("cc")),
+                ~ te(doy, k = 8, bs = c("cc")))
+fml_ald <- y ~ te(doy, bs=c("cc"), k = 8)
 
 model_fml_thr <- NULL
 model_fml_gpd <- NULL
@@ -780,14 +780,14 @@ legend("topleft",
 ## The numbers for comparison rounded to 2 desimals
 
 ``` r
-cat(sprintf("Truthr: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
+cat(sprintf("Truth: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
             8.43, rv100_q2p, rv100_q3, rv100_q4))
 ```
 
-    ## Truthr: 8.43
-    ## q'2: 8.30
-    ## q3: 8.31
-    ## q4: 8.26
+    ## Truth: 8.43
+    ## q'2: 8.42
+    ## q3: 8.36
+    ## q4: 8.37
 
 ## Notes
 
