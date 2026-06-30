@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ## 237.516  24.169 261.761
+    ## 235.637  22.021 257.695
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -89,7 +89,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 30  # e.g. nbstrp = 20 for testing
+nbstrp <- 50  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   9.867   0.077   9.946
+    ##  16.390   0.154  16.545
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -203,7 +203,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.30   13.10   13.94   14.46   15.03   52.22
+    ##   11.15   13.25   13.96   14.26   14.89   34.08
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -559,9 +559,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 13.69
-    ## High sector: 23.53
-    ## Omni: 24.70
+    ## Low sector: 13.90
+    ## High sector: 23.76
+    ## Omni: 24.30
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -605,7 +605,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  17.846   0.630  18.477
+    ##  23.607   1.283  24.989
 
 ## Plot picking result
 
@@ -648,7 +648,7 @@ cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
 plot_cvres(cvres, limits = c(.8, .9))
 ```
 
-    ## [1] 0.88 0.86
+    ## [1] 0.88 0.88
 
 ![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
@@ -656,7 +656,7 @@ plot_cvres(cvres, limits = c(.8, .9))
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 30  # e.g. nbstrp = 20 for testing
+nbstrp <- 50  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -785,9 +785,9 @@ cat(sprintf("Truth: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
 ```
 
     ## Truth: 8.43
-    ## q'2: 8.42
+    ## q'2: 8.35
     ## q3: 8.36
-    ## q4: 8.37
+    ## q4: 8.30
 
 ## Notes
 

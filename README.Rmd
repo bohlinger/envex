@@ -78,7 +78,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ```{r message=FALSE, warning=FALSE}
 # number of bootstrap/resampling steps
-nbstrp <- 30  # e.g. nbstrp = 20 for testing
+nbstrp <- 50  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -589,7 +589,7 @@ plot_cvres(cvres, limits = c(.8, .9))
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide', fig.keep='none'}
 # number of bootstrap/resampling steps
-nbstrp <- 30  # e.g. nbstrp = 20 for testing
+nbstrp <- 50  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
