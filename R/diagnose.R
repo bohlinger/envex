@@ -687,15 +687,16 @@ vis_sim_storms <- function(res, xlim=c(0,15), ylim=c(0,25), storm_idx=1){
   plot(df_storm_hist$tm2, df_storm_hist$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=1, lty=1, lwd=1, xlab='Tm02 [s]', ylab='Hs [s]', main='', col='blue')
   par(new=TRUE)
   plot(df_storm_sim$tm2, df_storm_sim$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=1, lty=1, lwd=1, xlab='Tm02 [s]', ylab='Hs [s]', main='', col='red')
-  # Add a legend
   legend("topleft", legend = c("All hist", "Traj Hist", "Traj Sim"),
          col = c("grey", "blue", "red"), pch = c(20, 20, 20), lty = c(NA, 1, 1),
-         bg = "white")
+         bg = "white", bty = "n")
+  mtext("a)", side = 3, line = -1.5, adj = 0.95, cex = 1)
 
   # Ts Hs
   plot(df_storm_hist$dt, df_storm_hist$hs, xlab='', ylab='Hs [m]', ylim=ylim, main='', type='o', lty=1, pch=20, col="blue")
   par(new=TRUE)
   plot(df_storm_hist$dt, df_storm_sim$hs, xlab='', ylab='Hs [m]', ylim=ylim, main='', type='o', lty=1, pch=20, col="red")
+  mtext("b)", side = 3, line = -1.5, adj = 0.95, cex = 1)
 
   # Polar plot historic
   max_extent <- max(ylim)
@@ -751,37 +752,44 @@ vis_sim_storms <- function(res, xlim=c(0,15), ylim=c(0,25), storm_idx=1){
   # Add a legend
   legend("topleft", legend = c("Hist", "Sim", "Start", "End"),
          col = c("blue", "red", "grey", "grey"), pch = c(NA, NA, 19, 2), lty = c(1, 1, NA, NA),
-         bg = "white")
+         bg = "white", bty = "n")
+  mtext("c)", side = 3, line = -1.5, adj = 0.95, cex = 1)
 
   # Ts Tm2
   plot(df_storm_hist$dt, df_storm_hist$tm2, xlab='', ylab='Tm02 [s]', ylim=xlim, main='', type='o', lty=1, pch=20, col="blue")
   par(new=TRUE)
   plot(df_storm_hist$dt, df_storm_sim$tm2, xlab='', ylab='Tm02 [s]', ylim=xlim, main='', type='o', lty=1, pch=20, col="red")
+  mtext("d)", side = 3, line = -1.5, adj = 0.95, cex = 1)
 }
 
-show_sim_pop <- function(res, xlim=c(0,15), ylim=c(0,25), steepness=FALSE){
+show_sim_pop <- function(res, xlim=c(0,15), ylim=c(0,25), xstr="tm2", ystr="hs", steepness=FALSE){
   # show population of all simulated RP storms
   par(mfrow = c(1, 1))
 
-  # joint Hs/Tm02
+  # joint xstr/ystr (e.g. tm2/hs)
   for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
     indiv_storm <- subset(res$sim_storms, pseudo_storm_idx==i)
-    plot(indiv_storm$tm2, indiv_storm$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=.3, lty=1, lwd=.4, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("red", alpha = 0.1))
+    plot(indiv_storm[[xstr]], indiv_storm[[ystr]], pch=20, xlim=xlim, ylim=ylim, type='o', cex=.3, lty=1, lwd=.2, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("red", alpha = 0.1))
     par(new=TRUE)
   }
-  plot(res$hist_storms$tm2, res$hist_storms$hs, pch=20, xlim=xlim, ylim=ylim, cex=.3, xlab='Tm02 [s]', ylab='Hs [m]', main='', col = adjustcolor("black", alpha = 0.4) )
+  plot(res$hist_storms[[xstr]], res$hist_storms[[ystr]], pch=20, xlim=xlim, ylim=ylim, cex=.3, xlab='Tm02 [s]', ylab='Hs [m]', main='', col = adjustcolor("black", alpha = 0.4) )
 
   for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
     indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
     par(new=TRUE)
-    indiv_peak <- subset(indiv_storm, hs == max(indiv_storm$hs))
-    plot(indiv_peak$tm2, indiv_peak$hs, pch=1, xlim=xlim, ylim=ylim, cex=.5, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("orange", alpha.f = .5))
+    indiv_peak <- subset(indiv_storm, hs == max(indiv_storm[[ystr]]))
+    #plot(indiv_peak[[xstr]], indiv_peak[[ystr]], pch=1, xlim=xlim, ylim=ylim, cex=.5, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("orange", alpha.f = .5))
+    plot(indiv_peak[[xstr]], indiv_peak[[ystr]], pch=21, xlim=xlim, ylim=ylim, cex=.5,
+         xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',
+         col = "grey30", bg = adjustcolor("darkorange", alpha.f = .8), lwd = 0.3)
   }
   for (i in 1:length(unique(res$hist_storms$pseudo_storm_idx))){
     indiv_storm <- subset(res$hist_storms, pseudo_storm_idx == i)
     par(new=TRUE)
-    indiv_peak <- subset(indiv_storm, hs == max(indiv_storm$hs))
-    plot(indiv_peak$tm2, indiv_peak$hs, pch=20, xlim=xlim, ylim=ylim, cex=.5, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("royalblue", alpha.f = .5))
+    indiv_peak <- subset(indiv_storm, hs == max(indiv_storm[[ystr]]))
+    plot(indiv_peak[[xstr]], indiv_peak[[ystr]], pch=21, xlim=xlim, ylim=ylim, cex=.5,
+         xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',
+         col = "grey30", bg = adjustcolor("lightblue", alpha.f = .8), lwd = 0.3)
   }
 
   if (steepness == TRUE){
@@ -811,10 +819,13 @@ show_sim_pop <- function(res, xlim=c(0,15), ylim=c(0,25), steepness=FALSE){
   legend(
     "topleft",
     legend = c("all historic storms","sample historic storm peaks","sample simulated storms","sample simulated peaks"),
-    col = c("black", "royalblue", "red", "orange"),
-    pch = c(20, 20, 20, 1),   # markers (only for peaks)
-    lty = c(NA, NA, 1, NA),        # line styles
-    lwd = c(NA, NA, 1, NA)
+    col = c("black", "grey30", "red", "grey30"),
+    pt.bg = c(NA, adjustcolor("lightblue", alpha.f = .8), NA, adjustcolor("darkorange", alpha.f = .8)),
+    pch = c(20, 21, 20, 21),
+    lty = c(NA, NA, 1, NA),
+    lwd = c(NA, NA, 1, NA),
+    pt.cex = c(1, 1, 1, 1),
+    bty = "n"
   )
 }
 
