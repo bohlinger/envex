@@ -948,12 +948,11 @@ plot_preds_2d_gg_shared <- function(df_preds, xvar, yvar,
   p
 }
 
-plot_ly_3d <- function(df_preds, xvar, yvar, zvar, df_obs = NULL) {
+plot_ly_3d <- function(df_preds, xvar, yvar, zvar, df_obs = NULL,
+                       xlim = NULL, ylim = NULL, zlim = NULL) {
   #' 3d visualisation of df_preds point cloud
   #' @export
-
   p <- plot_ly()
-
   p <- add_trace(p,
                  data = df_preds,
                  x = df_preds[[xvar]], y = df_preds[[yvar]], z = df_preds[[zvar]],
@@ -961,7 +960,6 @@ plot_ly_3d <- function(df_preds, xvar, yvar, zvar, df_obs = NULL) {
                  name = "predictions",
                  marker = list(size = 2, color = "steelblue", opacity = 0.4)
   )
-
   if (!is.null(df_obs)) {
     p <- add_trace(p,
                    data = df_obs,
@@ -971,14 +969,12 @@ plot_ly_3d <- function(df_preds, xvar, yvar, zvar, df_obs = NULL) {
                    marker = list(size = 3, color = "black", opacity = 0.8)
     )
   }
-
   p <- layout(p,
               scene = list(
-                xaxis = list(title = xvar),
-                yaxis = list(title = yvar),
-                zaxis = list(title = zvar)
+                xaxis = list(title = xvar, range = xlim),
+                yaxis = list(title = yvar, range = ylim),
+                zaxis = list(title = zvar, range = zlim)
               )
   )
-
   p
 }

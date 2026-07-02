@@ -36,6 +36,9 @@ df_ekofisk_red <- df_ekofisk[, c("time", "hs", "wind_speed_10m", "tp", "tm2", "P
 # full dataset
 ds <- df_ekofisk_red  # 48 yrs
 
+# add u10
+ds[['u10']] <- ds[['wind_speed_10m']]
+
 # number of years covered by original dataset
 nr_of_years <- 48
 
@@ -58,7 +61,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ## 248.291  22.181 270.623
+    ## 251.769  23.811 275.632
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -89,7 +92,7 @@ plot(density(ds$hs, bw=.1), main="All Sea States Hs [m]")
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 50  # e.g. nbstrp = 20 for testing
+nbstrp <- 20  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -98,7 +101,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  18.799   0.182  18.987
+    ##   7.377   0.000   7.379
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -142,8 +145,9 @@ knots = list(doy = c(0,366), Pdir=c(0,360))
 # indicate variable that needs ppgam weights
 node_str_lst = c('Pdir')
 
-# pick threshold range list based on cross-validation
-thr_range <- list('hs'=c(.72,.84), 'tm2'=c(.72,.84))
+# pick threshold range list based on some reasonable thresholds
+# cross-validation results could be used instead
+thr_range <- list('hs'=c(.8,.9), 'tm2'=c(.8,.9), 'u10'=c(.8,.9))
 
 # define models
 fml_pp <- ~ te(doy, Pdir, bs = c('cc', 'cc'), k = c(6,8))
@@ -151,6 +155,7 @@ fml_gpd <- list(exc ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")),
                 ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")))
 fml_ald <- hs ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
 fml_ald_tm2 <- tm2 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
+fml_ald_u10 <- u10 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
 
 model_fml_thr <- NULL
 model_fml_gpd <- NULL
@@ -161,18 +166,21 @@ model_fml_gpd[['hs']] <- fml_gpd
 model_fml_occ[['tm2']] <- fml_pp
 model_fml_thr[['tm2']] <- fml_ald_tm2
 model_fml_gpd[['tm2']] <- fml_gpd
+model_fml_occ[['u10']] <- fml_pp
+model_fml_thr[['u10']] <- fml_ald_u10
+model_fml_gpd[['u10']] <- fml_gpd
 
 syst <- system.time(
 models_margs <- fit_margs_bstrp(bstrp_pots_lst,
                                 model_fml_thr, model_fml_occ, model_fml_gpd,
                                 extr_thr=thr_range, nr_of_years,
-                                thr_str = 'thr',
-                                list_var = c('hs','tm2'),
+                                thr_str = "thr",
+                                list_var = c("hs", "tm2", "u10"),
                                 nbstrp = nbstrp,
                                 nquad = 225,
                                 knots = knots,
                                 node_str_lst = node_str_lst,
-                                family_occ = 'pp')
+                                family_occ = "pp")
 )
 print(syst)
 ```
@@ -185,10 +193,11 @@ nmc <- 100  # number of mc samples for each bootstrap sample
 
 syst <- system.time(
 preds_margs_lst <- predict_margs(models_margs, nr_of_years, RP=RP,
-                                 nmc = nmc, var_lst = c('hs','tm2'), nbstrp = nbstrp,
-                                 covarstr_lst = c('Pdir','doy'),
-                                 grid_interval = list('Pdir'=1, 'doy'=1),
-                                 family_occ = 'pp')
+                                 nmc = nmc, var_lst = c("hs", "tm2", "u10"),
+                                 nbstrp = nbstrp,
+                                 covarstr_lst = c("Pdir","doy"),
+                                 grid_interval = list("Pdir"=1, "doy"=1),
+                                 family_occ = "pp")
 )
 print(syst)
 ```
@@ -196,14 +205,14 @@ print(syst)
 ## Plot resulting simulated peaks
 
 ``` r
-dhs <- diagnose_margs_preds_density(preds_margs_lst, 'hs', bw=.1, xlim=c(5,40))
+dhs <- diagnose_margs_preds_density(preds_margs_lst, "hs", bw=.1, xlim=c(5,40))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.18   13.34   14.17   14.48   15.13   38.97
+    ##   11.29   13.54   14.46   15.04   15.68   47.00
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -248,7 +257,7 @@ print(syst)
 
 ``` r
 # diagnose effect of threshold choice
-diagnose_maxds(models_maxds_thr, maxd_thr, 'hs', 'tm2', ylim=c(-1.5, 1.5))
+diagnose_maxds(models_maxds_thr, maxd_thr, "hs", "tm2", ylim=c(-1.5, 1.5))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
@@ -270,24 +279,19 @@ print(syst)
 # Diagnose by comparing data against nsim HT2004 simulations
 
 ``` r
-nsim <- 100
-diagnose_maxds_fitted(models_maxds[[2]], "tm2", "hs", nsim)
-```
-
-![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
-
-``` r
+# example for "hs/tm2"
+nsim <- 200
 diagnose_maxds_fitted(models_maxds[[2]], "hs", "tm2", nsim)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 ## Simulate joint 100yr events
 
 ``` r
 # predict on Laplace space
 preds_maxds_LP <- predict_from_HT2004_models(models_margs, models_maxds,
-                                             c('tm2','hs'), nbstrp,
+                                             c("tm2", "hs", "u10"), nbstrp,
                                              preds=preds_margs_lst)
 
 # convert to real space
@@ -295,20 +299,20 @@ preds_maxds <- convert_HT2004_preds_to_original_space(
                   models_maxds,
                   preds_maxds_LP,
                   preds_margs_lst,
-                  var_lst = c("tm2", "hs"))
+                  var_lst = c("tm2", "hs", "u10"))
 
 # reorganize to consolidate
 preds_maxds_LP_new <- reorganize_HT2004_preds(
                         models_maxds,
                         preds_maxds_LP,
                         preds_margs_lst,
-                        var_lst = c("tm2","hs"))
+                        var_lst = c("tm2", "hs", "u10"))
 
 # retrieve valid predicted values according to chosen space
 valids <- retrieve_valid_HT_samples(preds_maxds,
                                     preds_maxds_LP,
                                     preds_margs_lst,
-                                    "hs", c("tm2"),
+                                    "hs", c("tm2", "u10"),
                                     models_maxds = models_maxds)
 
 # Filter Laplace to valid HT2004 space only
@@ -381,7 +385,16 @@ p3 <- plot_preds_2d_gg_shared(df_preds_both, xvar = "tm2", yvar = "hs",
 print(p1 + p2 + p3 + plot_layout(ncol = 3))
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+
+# Plot a 3D field
+
+``` r
+## output not shown here
+#plot_ly_3d(df_preds, xvar = "hs", yvar = "u10", zvar = "tm2",
+#           xlim = c(0, 20), ylim = c(0, 40), zlim = c(0, 20),
+#           df_obs = df_pick$pots)
+```
 
 ## Simulate storms (matching) given simulated storm peaks
 
@@ -559,9 +572,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 12.30
-    ## High sector: 23.50
-    ## Omni: 24.10
+    ## Low sector: 12.77
+    ## High sector: 23.30
+    ## Omni: 24.14
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -605,7 +618,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  17.576   0.748  18.329
+    ##  19.056   0.607  19.670
 
 ## Plot picking result
 
@@ -656,7 +669,7 @@ plot_cvres(cvres, limits = c(.8, .9))
 
 ``` r
 # number of bootstrap/resampling steps
-nbstrp <- 50  # e.g. nbstrp = 20 for testing
+nbstrp <- 20  # e.g. nbstrp = 20 for testing
 
 system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
                                                    group_col = "storm_idx",
@@ -785,8 +798,8 @@ cat(sprintf("Truth: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
 ```
 
     ## Truth: 8.43
-    ## q'2: 8.37
-    ## q3: 8.46
+    ## q'2: 8.38
+    ## q3: 8.51
     ## q4: 8.33
 
 ## Notes
