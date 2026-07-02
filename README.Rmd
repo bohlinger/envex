@@ -39,9 +39,6 @@ df_ekofisk_red <- df_ekofisk[, c("time", "hs", "wind_speed_10m", "tp", "tm2", "P
 # full dataset
 ds <- df_ekofisk_red  # 48 yrs
 
-# add u10
-ds[['u10']] <- ds[['wind_speed_10m']]
-
 # number of years covered by original dataset
 nr_of_years <- 48
 
@@ -126,7 +123,7 @@ node_str_lst = c('Pdir')
 
 # pick threshold range list based on some reasonable thresholds
 # cross-validation results could be used instead
-thr_range <- list('hs'=c(.8,.9), 'tm2'=c(.8,.9), 'u10'=c(.8,.9))
+thr_range <- list('hs'=c(.8,.9), 'tm2'=c(.8,.9))
 
 # define models
 fml_pp <- ~ te(doy, Pdir, bs = c('cc', 'cc'), k = c(6,8))
@@ -134,7 +131,6 @@ fml_gpd <- list(exc ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")),
                 ~ te(doy, Pdir, k=c(6,8), bs=c("cc","cc")))
 fml_ald <- hs ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
 fml_ald_tm2 <- tm2 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
-fml_ald_u10 <- u10 ~ te(doy, Pdir, bs=c("cc","cc"), k=c(6,8))
 
 model_fml_thr <- NULL
 model_fml_gpd <- NULL
@@ -145,16 +141,13 @@ model_fml_gpd[['hs']] <- fml_gpd
 model_fml_occ[['tm2']] <- fml_pp
 model_fml_thr[['tm2']] <- fml_ald_tm2
 model_fml_gpd[['tm2']] <- fml_gpd
-model_fml_occ[['u10']] <- fml_pp
-model_fml_thr[['u10']] <- fml_ald_u10
-model_fml_gpd[['u10']] <- fml_gpd
 
 syst <- system.time(
 models_margs <- fit_margs_bstrp(bstrp_pots_lst,
                                 model_fml_thr, model_fml_occ, model_fml_gpd,
                                 extr_thr=thr_range, nr_of_years,
                                 thr_str = "thr",
-                                list_var = c("hs", "tm2", "u10"),
+                                list_var = c("hs", "tm2"),
                                 nbstrp = nbstrp,
                                 nquad = 225,
                                 knots = knots,
@@ -172,7 +165,7 @@ nmc <- 100  # number of mc samples for each bootstrap sample
 
 syst <- system.time(
 preds_margs_lst <- predict_margs(models_margs, nr_of_years, RP=RP,
-                                 nmc = nmc, var_lst = c("hs", "tm2", "u10"),
+                                 nmc = nmc, var_lst = c("hs", "tm2"),
                                  nbstrp = nbstrp,
                                  covarstr_lst = c("Pdir","doy"),
                                  grid_interval = list("Pdir"=1, "doy"=1),
@@ -255,7 +248,7 @@ diagnose_maxds_fitted(models_maxds[[2]], "hs", "tm2", nsim)
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 # predict on Laplace space
 preds_maxds_LP <- predict_from_HT2004_models(models_margs, models_maxds,
-                                             c("tm2", "hs", "u10"), nbstrp,
+                                             c("tm2", "hs"), nbstrp,
                                              preds=preds_margs_lst)
 
 # convert to real space
@@ -263,25 +256,25 @@ preds_maxds <- convert_HT2004_preds_to_original_space(
                   models_maxds,
                   preds_maxds_LP,
                   preds_margs_lst,
-                  var_lst = c("tm2", "hs", "u10"))
+                  var_lst = c("tm2", "hs"))
 
 # reorganize to consolidate
 preds_maxds_LP_new <- reorganize_HT2004_preds(
                         models_maxds,
                         preds_maxds_LP,
                         preds_margs_lst,
-                        var_lst = c("tm2", "hs", "u10"))
+                        var_lst = c("tm2", "hs"))
 
 # retrieve valid predicted values according to chosen space
 valids <- retrieve_valid_HT_samples(preds_maxds,
                                     preds_maxds_LP,
                                     preds_margs_lst,
-                                    "hs", c("tm2", "u10"),
+                                    "hs", c("tm2"),
                                     models_maxds = models_maxds)
 
 # Filter Laplace to valid HT2004 space only
 out <- filter_preds_maxds(preds_maxds_LP_new,
-                          var_lst = c("u10", "hs", "tm2"),
+                          var_lst = c("hs", "tm2"),
                           preds2 = preds_maxds)
 preds_LP_filtered  <- out$preds_filtered
 preds_orig_filtered <- out$preds2_filtered
@@ -296,16 +289,15 @@ library(ggplot2)
 library(metR)
 library(MASS)
 
-var_lst <- c("hs", "tm2", "u10")
+var_lst <- c("hs", "tm2")
 
 df_preds_hs   <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = "hs")
 df_preds_tm2  <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = "tm2")
-df_preds_u10  <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = "u10")
-df_preds_all  <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = c("hs", "tm2", "u10"))
+df_preds_all  <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = c("hs", "tm2"))
 
 # Compute all shared parameters in one call
 params <- prepare_shared_plot_params(
-  df_list = list(df_preds_hs, df_preds_tm2, df_preds_u10, df_preds_all),
+  df_list = list(df_preds_hs, df_preds_tm2, df_preds_all),
   xvar = "tm2", yvar = "hs",
   df_obs = df_pick$pots
 )
@@ -323,21 +315,15 @@ p2 <- plot_preds_2d_gg_shared(df_preds_tm2,  xvar = "tm2", yvar = "hs",
                                clim = params$clim, show_legend = FALSE) +
   ggtitle("xi = tm2")
 
-p3 <- plot_preds_2d_gg_shared(df_preds_u10,  xvar = "tm2", yvar = "hs",
-                               df_obs = df_pick$pots,
-                               xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
-                               clim = params$clim, show_legend = FALSE) +
-  ggtitle("xi = u10")
-
-p4 <- plot_preds_2d_gg_shared(df_preds_all,  xvar = "tm2", yvar = "hs",
+p3 <- plot_preds_2d_gg_shared(df_preds_all,  xvar = "tm2", yvar = "hs",
                                df_obs = df_pick$pots,
                                xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
                                clim = params$clim, show_legend = TRUE) +
-  ggtitle("xi = hs + tm2 + u10")
+  ggtitle("xi = hs + tm2")
 
 # Combine and save
 print(
-  (p1 + p2 + p3 + p4) +
+  (p1 + p2 + p3) +
     plot_layout(ncol = 4) +
     plot_annotation(tag_levels = "a", tag_suffix = ")") &
     theme(plot.tag.position = c(0.05, 0.95),
@@ -345,22 +331,12 @@ print(
 )
 ```
 
-# Plot a 3D field
-```{r fig.width=9, fig.height=5, message=FALSE, warning=FALSE}
-## output not shown here
-# requires plotly
-
-#plot_ly_3d(df_preds, xvar = "hs", yvar = "u10", zvar = "tm2",
-#           xlim = c(0, 20), ylim = c(0, 40), zlim = c(0, 20),
-#           df_obs = df_pick$pots)
-```
-
 ## Simulate storms (matching) given simulated storm peaks
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 df_hist_pots <- df_pick$pots
 df_hist_storms <- df_pick$storms
-df_joint_pots <- df_preds_all
+df_joint_pots <- df_preds_hs
 
 # add steepness
 df_hist_pots[['s_tm2']] <- compute_steepness(df_hist_pots$hs, df_hist_pots$tm2)
