@@ -904,6 +904,7 @@ plot_preds_2d_gg_shared <- function(df_preds, xvar, yvar,
                                     xlim = NULL, ylim = NULL,
                                     clim = NULL,
                                     show_legend = TRUE) {
+  #' @export
 
   if (is.null(xlim)) xlim <- range(df_preds[[xvar]])
   if (is.null(ylim)) ylim <- range(df_preds[[yvar]])
@@ -946,6 +947,32 @@ plot_preds_2d_gg_shared <- function(df_preds, xvar, yvar,
   }
 
   p
+}
+
+prepare_shared_plot_params <- function(df_list, xvar, yvar, df_obs = NULL, bins = 100) {
+  #' @export
+  #'
+  # Compute global axis limits across all dataframes
+  xlim <- range(c(unlist(lapply(df_list, function(df) df[[xvar]])),
+                  if (!is.null(df_obs)) df_obs[[xvar]]))
+  ylim <- range(c(unlist(lapply(df_list, function(df) df[[yvar]])),
+                  if (!is.null(df_obs)) df_obs[[yvar]]))
+
+  # Compute global bin breaks
+  x_breaks <- seq(xlim[1], xlim[2], length.out = bins + 1)
+  y_breaks <- seq(ylim[1], ylim[2], length.out = bins + 1)
+
+  # Compute global max count for shared color scale
+  max_count <- max(sapply(df_list, function(df) {
+    x_idx <- findInterval(df[[xvar]], x_breaks)
+    y_idx <- findInterval(df[[yvar]], y_breaks)
+    max(table(paste(x_idx, y_idx)))
+  }))
+
+  list(xlim  = xlim,
+       ylim  = ylim,
+       clim  = c(0, max_count),
+       bins  = bins)
 }
 
 plot_ly_3d <- function(df_preds, xvar, yvar, zvar, df_obs = NULL,

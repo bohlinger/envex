@@ -61,7 +61,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ## 251.769  23.811 275.632
+    ## 277.938  27.842 305.837
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -101,7 +101,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   7.377   0.000   7.379
+    ##   7.869   0.000   7.870
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -212,7 +212,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, "hs", bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.29   13.54   14.46   15.04   15.68   47.00
+    ##   11.44   13.72   14.90   15.68   16.56   63.90
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -332,57 +332,53 @@ library(ggplot2)
 library(metR)
 library(MASS)
 
-var_lst <- c("hs", "tm2")
+var_lst <- c("hs", "tm2", "u10")
 
-# Prepare dataframes for each case
 df_preds_hs   <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = "hs")
 df_preds_tm2  <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = "tm2")
-df_preds_both <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = c("hs", "tm2"))
+df_preds_u10  <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = "u10")
+df_preds_all  <- prepare_preds_df(preds_orig_filtered, var_lst, xi_select = c("hs", "tm2", "u10"))
 
-# Compute global axis limits across all three datasets
-xlim_global <- range(c(df_preds_hs$tm2,   df_preds_tm2$tm2,   df_preds_both$tm2,   df_pick$pots$tm2))
-ylim_global <- range(c(df_preds_hs$hs,    df_preds_tm2$hs,    df_preds_both$hs,    df_pick$pots$hs))
-
-# Compute global bin breaks across all three datasets
-bins <- 100
-x_breaks <- seq(xlim_global[1], xlim_global[2], length.out = bins + 1)
-y_breaks <- seq(ylim_global[1], ylim_global[2], length.out = bins + 1)
-
-# Helper to get bin counts for a dataframe
-get_bin_counts <- function(df, xvar, yvar, x_breaks, y_breaks) {
-  x_idx <- findInterval(df[[xvar]], x_breaks)
-  y_idx <- findInterval(df[[yvar]], y_breaks)
-  max(table(paste(x_idx, y_idx)))
-}
-
-# Compute global max count for common color scale
-max_count <- max(
-  get_bin_counts(df_preds_hs,   "tm2", "hs", x_breaks, y_breaks),
-  get_bin_counts(df_preds_tm2,  "tm2", "hs", x_breaks, y_breaks),
-  get_bin_counts(df_preds_both, "tm2", "hs", x_breaks, y_breaks)
+# Compute all shared parameters in one call
+params <- prepare_shared_plot_params(
+  df_list = list(df_preds_hs, df_preds_tm2, df_preds_u10, df_preds_all),
+  xvar = "tm2", yvar = "hs",
+  df_obs = df_pick$pots
 )
 
-# Create plots with shared color limits
-clim <- c(0, max_count)
-
+# Create plots
 p1 <- plot_preds_2d_gg_shared(df_preds_hs,   xvar = "tm2", yvar = "hs",
-                              df_obs = df_pick$pots,
-                              xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
-                              clim = clim, show_legend = FALSE) +
+                               df_obs = df_pick$pots,
+                               xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
+                               clim = params$clim, show_legend = FALSE) +
   ggtitle("xi = hs")
 
 p2 <- plot_preds_2d_gg_shared(df_preds_tm2,  xvar = "tm2", yvar = "hs",
-                              df_obs = df_pick$pots,
-                              xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
-                              clim = clim, show_legend = FALSE) +
+                               df_obs = df_pick$pots,
+                               xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
+                               clim = params$clim, show_legend = FALSE) +
   ggtitle("xi = tm2")
 
-p3 <- plot_preds_2d_gg_shared(df_preds_both, xvar = "tm2", yvar = "hs",
-                              df_obs = df_pick$pots,
-                              xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
-                              clim = clim, show_legend = TRUE) +
-  ggtitle("xi = hs + tm2")
-print(p1 + p2 + p3 + plot_layout(ncol = 3))
+p3 <- plot_preds_2d_gg_shared(df_preds_u10,  xvar = "tm2", yvar = "hs",
+                               df_obs = df_pick$pots,
+                               xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
+                               clim = params$clim, show_legend = FALSE) +
+  ggtitle("xi = u10")
+
+p4 <- plot_preds_2d_gg_shared(df_preds_all,  xvar = "tm2", yvar = "hs",
+                               df_obs = df_pick$pots,
+                               xlim = c(2,14), ylim = c(0,20), density_levels = c(0.05),
+                               clim = params$clim, show_legend = TRUE) +
+  ggtitle("xi = hs + tm2 + u10")
+
+# Combine and save
+print(
+  (p1 + p2 + p3 + p4) +
+    plot_layout(ncol = 4) +
+    plot_annotation(tag_levels = "a", tag_suffix = ")") &
+    theme(plot.tag.position = c(0.05, 0.95),
+          plot.tag = element_text(size = 12, face = "bold"))
+)
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
@@ -391,6 +387,8 @@ print(p1 + p2 + p3 + plot_layout(ncol = 3))
 
 ``` r
 ## output not shown here
+# requires plotly
+
 #plot_ly_3d(df_preds, xvar = "hs", yvar = "u10", zvar = "tm2",
 #           xlim = c(0, 20), ylim = c(0, 40), zlim = c(0, 20),
 #           df_obs = df_pick$pots)
@@ -401,7 +399,7 @@ print(p1 + p2 + p3 + plot_layout(ncol = 3))
 ``` r
 df_hist_pots <- df_pick$pots
 df_hist_storms <- df_pick$storms
-df_joint_pots <- df_preds_both
+df_joint_pots <- df_preds_all
 
 # add steepness
 df_hist_pots[['s_tm2']] <- compute_steepness(df_hist_pots$hs, df_hist_pots$tm2)
@@ -572,9 +570,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 12.77
-    ## High sector: 23.30
-    ## Omni: 24.14
+    ## Low sector: 18.40
+    ## High sector: 21.28
+    ## Omni: 24.88
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -618,7 +616,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  19.056   0.607  19.670
+    ##  20.952   0.435  21.391
 
 ## Plot picking result
 
@@ -661,7 +659,7 @@ cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
 plot_cvres(cvres, limits = c(.8, .9))
 ```
 
-    ## [1] 0.88 0.88
+    ## [1] 0.90 0.88
 
 ![](README_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
@@ -799,8 +797,8 @@ cat(sprintf("Truth: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
 
     ## Truth: 8.43
     ## q'2: 8.38
-    ## q3: 8.51
-    ## q4: 8.33
+    ## q3: 8.34
+    ## q4: 8.34
 
 ## Notes
 
