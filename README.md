@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ## 277.939  26.749 304.740
+    ## 288.060  26.099 314.294
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   7.862   0.073   7.937
+    ##  10.632   0.086  10.718
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -205,7 +205,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, "hs", bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.38   13.67   14.69   15.19   15.96   37.86
+    ##   11.51   13.64   14.60   15.19   15.86   80.01
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -545,9 +545,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 15.22
-    ## High sector: 23.60
-    ## Omni: 24.64
+    ## Low sector: 16.33
+    ## High sector: 24.37
+    ## Omni: 25.08
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -591,7 +591,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  37.811   1.174  39.009
+    ##  18.293   0.545  18.880
 
 ## Plot picking result
 
@@ -757,7 +757,7 @@ legend("topleft",
                   "Truth (q3 from data)"),
        col = c("black", "black", "black", "gray", "blue", "darkred", "paleturquoise2", "red"),
        lwd = 2,
-       lty = c(3,2,1,1,1,1,1,1),
+       lty = c(3,2,1,1,1,1,1,2),
        bty = "n")  # removes box around legend
 ```
 
@@ -771,9 +771,9 @@ cat(sprintf("Truth: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
 ```
 
     ## Truth: 8.43
-    ## q'2: 8.49
-    ## q3: 8.51
-    ## q4: 8.46
+    ## q'2: 8.43
+    ## q3: 8.45
+    ## q4: 8.40
 
 ## Notes
 

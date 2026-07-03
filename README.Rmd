@@ -692,7 +692,7 @@ legend("topleft",
                   "Truth (q3 from data)"),
        col = c("black", "black", "black", "gray", "blue", "darkred", "paleturquoise2", "red"),
        lwd = 2,
-       lty = c(3,2,1,1,1,1,1,1),
+       lty = c(3,2,1,1,1,1,1,2),
        bty = "n")  # removes box around legend
 ```
 
