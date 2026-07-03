@@ -324,7 +324,7 @@ p3 <- plot_preds_2d_gg_shared(df_preds_all,  xvar = "tm2", yvar = "hs",
 # Combine and save
 print(
   (p1 + p2 + p3) +
-    plot_layout(ncol = 4) +
+    plot_layout(ncol = 3) +
     plot_annotation(tag_levels = "a", tag_suffix = ")") &
     theme(plot.tag.position = c(0.05, 0.95),
           plot.tag = element_text(size = 12, face = "bold"))
@@ -668,9 +668,6 @@ plot(density(ds_subset$y, bw=.1), xlim = c(0,11), ylim=c(0,1.5),
 
 abline(v = max(df_pick$pots$y), col = "gray", lwd = 2)
 
-# value is known from original full 10000yrs
-abline(v = 8.43, col = "red", lwd = 2)
-
 rvs <- NULL
 for (i in 1:length(dy$maxvals)){
   rvs[[i]] <- quantile(unlist(dy$maxvals[[i]]), exp(-1))
@@ -680,6 +677,9 @@ rv100_q2p <- mean(unlist(rvs))  # q'2 estimator
 abline(v = rv100_q2p, col = "blue", lwd = 2)
 abline(v = rv100_q4, col = "paleturquoise2", lwd = 2)
 abline(v = rv100_q3, col = "darkred", lwd = 2)
+
+# value is known from original full 10000yrs
+abline(v = 8.43, col = "red", lwd = 2, lty = 2)
 
 legend("topleft",
        legend = c("All data",

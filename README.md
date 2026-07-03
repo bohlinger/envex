@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ## 241.506  25.314 266.857
+    ## 277.939  26.749 304.740
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   6.338   0.026   6.365
+    ##   7.862   0.073   7.937
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -205,7 +205,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, "hs", bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.40   13.63   14.58   15.04   15.84   69.22
+    ##   11.38   13.67   14.69   15.19   15.96   37.86
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -360,7 +360,7 @@ p3 <- plot_preds_2d_gg_shared(df_preds_all,  xvar = "tm2", yvar = "hs",
 # Combine and save
 print(
   (p1 + p2 + p3) +
-    plot_layout(ncol = 4) +
+    plot_layout(ncol = 3) +
     plot_annotation(tag_levels = "a", tag_suffix = ")") &
     theme(plot.tag.position = c(0.05, 0.95),
           plot.tag = element_text(size = 12, face = "bold"))
@@ -545,9 +545,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 14.27
-    ## High sector: 23.23
-    ## Omni: 23.50
+    ## Low sector: 15.22
+    ## High sector: 23.60
+    ## Omni: 24.64
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -591,7 +591,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  17.453   0.591  18.051
+    ##  37.811   1.174  39.009
 
 ## Plot picking result
 
@@ -733,9 +733,6 @@ plot(density(ds_subset$y, bw=.1), xlim = c(0,11), ylim=c(0,1.5),
 
 abline(v = max(df_pick$pots$y), col = "gray", lwd = 2)
 
-# value is known from original full 10000yrs
-abline(v = 8.43, col = "red", lwd = 2)
-
 rvs <- NULL
 for (i in 1:length(dy$maxvals)){
   rvs[[i]] <- quantile(unlist(dy$maxvals[[i]]), exp(-1))
@@ -745,6 +742,9 @@ rv100_q2p <- mean(unlist(rvs))  # q'2 estimator
 abline(v = rv100_q2p, col = "blue", lwd = 2)
 abline(v = rv100_q4, col = "paleturquoise2", lwd = 2)
 abline(v = rv100_q3, col = "darkred", lwd = 2)
+
+# value is known from original full 10000yrs
+abline(v = 8.43, col = "red", lwd = 2, lty = 2)
 
 legend("topleft",
        legend = c("All data",
@@ -771,9 +771,9 @@ cat(sprintf("Truth: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
 ```
 
     ## Truth: 8.43
-    ## q'2: 8.44
+    ## q'2: 8.49
     ## q3: 8.51
-    ## q4: 8.37
+    ## q4: 8.46
 
 ## Notes
 
