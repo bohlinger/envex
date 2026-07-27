@@ -58,7 +58,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ## 288.060  26.099 314.294
+    ## 262.670  25.883 288.632
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -98,7 +98,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##  10.632   0.086  10.718
+    ##   7.021   0.051   7.073
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -205,7 +205,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, "hs", bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.51   13.64   14.60   15.19   15.86   80.01
+    ##   11.60   13.47   14.26   14.95   15.57   45.35
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -545,9 +545,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 16.33
-    ## High sector: 24.37
-    ## Omni: 25.08
+    ## Low sector: 12.66
+    ## High sector: 22.30
+    ## Omni: 23.20
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -591,7 +591,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  18.293   0.545  18.880
+    ##  19.016   0.407  19.429
 
 ## Plot picking result
 
@@ -772,7 +772,7 @@ cat(sprintf("Truth: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
 
     ## Truth: 8.43
     ## q'2: 8.43
-    ## q3: 8.45
+    ## q3: 8.40
     ## q4: 8.40
 
 ## Notes

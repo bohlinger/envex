@@ -49,7 +49,7 @@ storm_trajectory_Hmax <- function(hs_traj, tm02_traj, tdelta=3600, llim=0,
   #'
   #' @export
 
-  x_lst <- seq(0,ulim,integr_step)
+  x_lst <- seq(llim,ulim,integr_step)
   P_i_lst <- array(0, length(hs_traj))*NA
   P_s_lst <- array(0, length(x_lst))*NA
 
@@ -83,8 +83,10 @@ storm_trajectory_Hmax <- function(hs_traj, tm02_traj, tdelta=3600, llim=0,
   x_lst_diff <- x_lst[2:length(x_lst)]
 
   # find max of deriv
-  mode_of_deriv <- x_lst_diff[deriv==max(deriv)]
-  E_of_deriv <- sum(deriv*x_lst_diff)
+  mode_of_deriv <- x_lst_diff[which.max(deriv)]
+  #E_of_deriv <- sum(deriv*x_lst_diff)  # valid but has a slight positive bias
+  # therefore we use the following one which is less depending on the chosen grid.
+  E_of_deriv <- sum((P_s_lst[-length(P_s_lst)] + P_s_lst[-1])/2 * diff(x_lst))
   if (verbose==TRUE){
     print(c('Most likely Hmax:', mode_of_deriv))
     print(c('Expected Hmax:', E_of_deriv))

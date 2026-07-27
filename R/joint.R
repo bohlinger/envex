@@ -122,7 +122,7 @@ compute_lp_margs <- function(probs) {
 }
 
 compute_probs <- function(margs_thr, margs_gpd, dfin = NULL, list_var = NULL,
-                          thr_str = "thr", thr_ecdf_gpd_transistion_margin = 0.01) {
+                          thr_str = "thr", thr_ecdf_gpd_transition_margin = 0.01) {
   #' @export
   #'
   probs_ecdf <- NULL
@@ -159,7 +159,7 @@ compute_probs <- function(margs_thr, margs_gpd, dfin = NULL, list_var = NULL,
 
     # combine probs
     tmp <- probs_gpd[[n]]
-    tmp[tmp < (margs_thr[[n]]$tau + thr_ecdf_gpd_transistion_margin)] <- probs_ecdf[[n]][tmp < (margs_thr[[n]]$tau + thr_ecdf_gpd_transistion_margin)]
+    tmp[tmp < (margs_thr[[n]]$tau + thr_ecdf_gpd_transition_margin)] <- probs_ecdf[[n]][tmp < (margs_thr[[n]]$tau + thr_ecdf_gpd_transition_margin)]
     probs[[n]] <- unlist(tmp)
     rm(tmp)
   }
@@ -467,7 +467,6 @@ predict_from_HT2004_models <- function(margs, maxds,
         tmp_Z <- maxds[[b]][[var_lst[n]]][[m]][["Z"]]
         lp_Y <- tmp_alpha * lp_X + lp_X**(tmp_beta) *
                 tmp_Z[runif_func(length(lp_X), min = 1, max = length(tmp_Z))]
-                #(tmp_Z[runif_func(length(lp_X), min = 1, max = length(tmp_Z))]*tmp_sig+tmp_mu)
         lp_Y_lst_tmp[[m]] <- as.numeric(lp_Y)
       }
 

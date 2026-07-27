@@ -778,3 +778,7 @@ pairwise_scores <- function(dists, metric = "both", ...) {
     tail = compute(function(a, b) tail_score(a, b, ...)$score)
   )
 }
+
+#strip_margs <- function(margs_in) {
+#  return margs_out
+#}

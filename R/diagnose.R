@@ -280,10 +280,69 @@ diagnose_margs_occ_pois <- function(mpois, xstr='doy', ystr='Pdir', zstr='counts
   print(c('Nr of simulated counts:', sum(fitted_vals)))
 }
 
-diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, ylim=NULL) {
+#' diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, ylim=NULL) {
+#'   #' @export
+#'
+#'   maxd_params_bstrp <- unfold_maxd_params_bstrp_v2(models_maxds_lst, X_var_str, Y_var_str)
+#'
+#'   # Define the parameters, labels, and data columns
+#'   parameters <- c("alpha", "beta", "mu", "sigma")
+#'   ylabels <- c("alpha", "beta", "mu", "sigma")
+#'
+#'   # Set up a 2x2 plotting layout
+#'   par(mfrow = c(2, 2))
+#'
+#'   # Loop through each parameter and generate the plots
+#'   for (i in seq_along(parameters)) {
+#'     param <- parameters[i]
+#'     ylabel <- ylabels[i]
+#'
+#'     # Extract the corresponding columns for center, lower, and upper limits
+#'     p_cntr <- maxd_params_bstrp[[paste0(param, "_cntr")]]
+#'     p_llim <- maxd_params_bstrp[[paste0(param, "_llim")]]
+#'     p_ulim <- maxd_params_bstrp[[paste0(param, "_ulim")]]
+#'
+#'     # Remove NA values (if any)
+#'     valid_indices <- complete.cases(p_cntr, p_llim, p_ulim)
+#'     p_cntr <- p_cntr[valid_indices]
+#'     p_llim <- p_llim[valid_indices]
+#'     p_ulim <- p_ulim[valid_indices]
+#'     maxd_thr_valid <- maxd_thr[valid_indices]
+#'
+#'     # Set y-axis range
+#'     if (is.null(ylim)) {
+#'       ylim <- c(-1.5, 1.5)
+#'     }
+#'
+#'
+#'     # Plot the center line
+#'     plot(maxd_thr_valid, p_cntr, type = "l", ylim = ylim, main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
+#'     par(new = TRUE)
+#'
+#'     # Plot the lower limit
+#'     plot(maxd_thr_valid, p_llim, type = "l", ylim = ylim, col = "red", main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
+#'     par(new = TRUE)
+#'
+#'     # Plot the upper limit
+#'     plot(maxd_thr_valid, p_ulim, type = "l", ylim = ylim, col = "red", main = "", xlab = "maxd threshold quantile", ylab = ylabel)
+#'
+#'     # Add horizontal reference lines
+#'     abline(h = 0, col = "gray", lwd = .8, lty = 1)
+#'     abline(h = 1, col = "gray", lwd = .8, lty = 1)
+#'     abline(h = -1, col = "gray", lwd = .8, lty = 1)
+#'     abline(h = .5, col = "gray", lwd = .8, lty = 3)
+#'     abline(h = -.5, col = "gray", lwd = .8, lty = 3)
+#'   }
+#' }
+
+diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, ylim = NULL) {
   #' @export
 
-  maxd_params_bstrp <- unfold_maxd_params_bstrp_v2(models_maxds_lst, X_var_str, Y_var_str)
+  maxd_params_bstrp <- unfold_maxd_params_bstrp_v2(
+    models_maxds_lst,
+    X_var_str,
+    Y_var_str
+  )
 
   # Define the parameters, labels, and data columns
   parameters <- c("alpha", "beta", "mu", "sigma")
@@ -294,44 +353,77 @@ diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, yli
 
   # Loop through each parameter and generate the plots
   for (i in seq_along(parameters)) {
+
     param <- parameters[i]
     ylabel <- ylabels[i]
 
-    # Extract the corresponding columns for center, lower, and upper limits
+    # Extract the corresponding columns
     p_cntr <- maxd_params_bstrp[[paste0(param, "_cntr")]]
     p_llim <- maxd_params_bstrp[[paste0(param, "_llim")]]
     p_ulim <- maxd_params_bstrp[[paste0(param, "_ulim")]]
 
-    # Remove NA values (if any)
+    # Remove NA values
     valid_indices <- complete.cases(p_cntr, p_llim, p_ulim)
     p_cntr <- p_cntr[valid_indices]
     p_llim <- p_llim[valid_indices]
     p_ulim <- p_ulim[valid_indices]
     maxd_thr_valid <- maxd_thr[valid_indices]
 
-    # Set y-axis range
+    # Set parameter-specific y-axis limits
     if (is.null(ylim)) {
-      ylim <- c(-1.5, 1.5)
+      if (param %in% c("alpha", "sigma")) {
+        ylim_use <- c(-0.05, 1.5)
+      } else {
+        ylim_use <- c(-1.5, 1.5)
+      }
+    } else {
+      ylim_use <- ylim
     }
 
-
-    # Plot the center line
-    plot(maxd_thr_valid, p_cntr, type = "l", ylim = ylim, main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
+    # Plot center estimate
+    plot(
+      maxd_thr_valid, p_cntr,
+      type = "l",
+      ylim = ylim_use,
+      main = "",
+      xlab = "",
+      ylab = "",
+      xaxt = "n",
+      yaxt = "n"
+    )
     par(new = TRUE)
 
-    # Plot the lower limit
-    plot(maxd_thr_valid, p_llim, type = "l", ylim = ylim, col = "red", main = "", xlab = "", ylab = "", xaxt = "n", yaxt = "n")
+    # Plot lower confidence limit
+    plot(
+      maxd_thr_valid, p_llim,
+      type = "l",
+      ylim = ylim_use,
+      col = "red",
+      main = "",
+      xlab = "",
+      ylab = "",
+      xaxt = "n",
+      yaxt = "n"
+    )
     par(new = TRUE)
 
-    # Plot the upper limit
-    plot(maxd_thr_valid, p_ulim, type = "l", ylim = ylim, col = "red", main = "", xlab = "maxd threshold quantile", ylab = ylabel)
+    # Plot upper confidence limit
+    plot(
+      maxd_thr_valid, p_ulim,
+      type = "l",
+      ylim = ylim_use,
+      col = "red",
+      main = "",
+      xlab = "maxd threshold quantile",
+      ylab = ylabel
+    )
 
-    # Add horizontal reference lines
-    abline(h = 0, col = "gray", lwd = .8, lty = 1)
-    abline(h = 1, col = "gray", lwd = .8, lty = 1)
-    abline(h = -1, col = "gray", lwd = .8, lty = 1)
-    abline(h = .5, col = "gray", lwd = .8, lty = 3)
-    abline(h = -.5, col = "gray", lwd = .8, lty = 3)
+    # Reference lines
+    abline(h = 0,   col = "gray", lwd = 0.8, lty = 1)
+    abline(h = 1,   col = "gray", lwd = 0.8, lty = 1)
+    abline(h = -1,  col = "gray", lwd = 0.8, lty = 1)
+    abline(h = 0.5, col = "gray", lwd = 0.8, lty = 3)
+    abline(h = -0.5,col = "gray", lwd = 0.8, lty = 3)
   }
 }
 
