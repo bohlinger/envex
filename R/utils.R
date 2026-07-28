@@ -398,8 +398,8 @@ cross_validation <- function(dfin, nr_cv, extr_thr_lst, varstr,
   cv_mean_serror <- apply(cv_serror_df, 1, mean, na.rm = TRUE)
   cv_mean_dserror <- apply(cv_dserror_df, 1, mean, na.rm = TRUE)
 
-  costfunc1 <- (abs(cv_mean_bias) + cv_mean_serror)
-  costfunc2 <- (abs(cv_mean_bias) + cv_mean_dserror)
+  costfunc1 <- ((cv_mean_bias)^2 + cv_mean_serror)
+  costfunc2 <- ((cv_mean_bias)^2 + cv_mean_dserror)
   costfunc3 <- (abs(cv_mean_bias) + cv_mean_mae)
 
   mask <- !is.na(costfunc1)

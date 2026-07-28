@@ -661,61 +661,110 @@ display_joint_densities <- function(preds_maxds,
 plot_cvres <- function(cvres, limits = NULL, show_errors = NULL) {
   #' Plots the results from the cross-validation procedure
   #' @export
-  #'
+
   # print values of minimum
   print(c(cvres$thr[cvres$cost$costfct1 == min(cvres$cost$costfct1)],
-          #cvres$thr[cvres$cost$costfct2 == min(cvres$cost$costfct2)],
           cvres$thr[cvres$cost$costfct3 == min(cvres$cost$costfct3)]))
 
+  # Helper function to add panel label
+  add_panel_label <- function(label) {
+    usr <- par("usr")
+    text(
+      x = usr[1] + 0.03 * diff(usr[1:2]),
+      y = usr[4] - 0.03 * diff(usr[3:4]),
+      labels = label,
+      adj = c(0, 1),
+      font = 2,
+      cex = 1.2
+    )
+  }
+
   if (is.null(limits)) {
+
     # plot mean cost-function
     par(mfrow = c(1, 2))
-    plot(cvres$thr, cvres$cost$costfct1, xlab = "Threshold", main = "MSE based", ylab = "Costfunction 1")
+
+    plot(cvres$thr, cvres$cost$costfct1,
+         xlab = "Threshold",
+         main = "MSE based",
+         ylab = "Costfunction 1")
     abline(v = cvres$thr[cvres$cost$costfct1 == min(cvres$cost$costfct1)])
-    splc1 <- smooth.spline(cvres$thr, cvres$cost$costfct1, df=5)
+    splc1 <- smooth.spline(cvres$thr, cvres$cost$costfct1, df = 5)
     lines(splc1, col = "red", lwd = 2)
-    #plot(cvres$thr, cvres$cost$costfct2)
-    #abline(v = cvres$thr[cvres$cost$costfct2 == min(cvres$cost$costfct2)])
-    plot(cvres$thr, cvres$cost$costfct3, xlab = "Threshold", main = "MAE based", ylab = "Costfunction 2")
+    add_panel_label("a)")
+
+    plot(cvres$thr, cvres$cost$costfct3,
+         xlab = "Threshold",
+         main = "MAE based",
+         ylab = "Costfunction 2")
     abline(v = cvres$thr[cvres$cost$costfct3 == min(cvres$cost$costfct3)])
-    splc3 <- smooth.spline(cvres$thr, cvres$cost$costfct3, df=5)
+    splc3 <- smooth.spline(cvres$thr, cvres$cost$costfct3, df = 5)
     lines(splc3, col = "red", lwd = 2)
+    add_panel_label("b)")
 
   } else {
+
     # Add the shaded region
-    # Define the polygon coordinates
-    x1 = limits[1]
-    x2 = limits[2]
+    x1 <- limits[1]
+    x2 <- limits[2]
     polygon_x <- c(x1, x2, x2, x1)
-    polygon_y <- c(-1000, -1000, 1000, 1000) # Extend to the plot limits vertically
-    # plot mean cost-function
+    polygon_y <- c(-1000, -1000, 1000, 1000)
+
     par(mfrow = c(1, 2))
-    plot(cvres$thr, cvres$cost$costfct1, xlab = "Threshold", main = "MSE based", ylab = "Costfunction 1")
-    polygon(polygon_x, polygon_y, col = rgb(0.6, 0.6, 0.6, 0.3), border = NA)
-    abline(v = cvres$thr[cvres$cost$costfct1 == -min(cvres$cost$costfct1)])
-    splc1 <- smooth.spline(cvres$thr, cvres$cost$costfct1, df=5)
+
+    plot(cvres$thr, cvres$cost$costfct1,
+         xlab = "Threshold",
+         main = "MSE based",
+         ylab = "Costfunction 1")
+    polygon(polygon_x, polygon_y,
+            col = rgb(0.6, 0.6, 0.6, 0.3),
+            border = NA)
+    abline(v = cvres$thr[cvres$cost$costfct1 == min(cvres$cost$costfct1)])
+    splc1 <- smooth.spline(cvres$thr, cvres$cost$costfct1, df = 5)
     lines(splc1, col = "red", lwd = 2)
-    #plot(cvres$thr, cvres$cost$costfct2)
-    #polygon(polygon_x, polygon_y, col = rgb(0.6, 0.6, 0.6, 0.3), border = NA)
-    #abline(v = cvres$thr[cvres$cost$costfct2 == min(cvres$cost$costfct2)])
-    plot(cvres$thr, cvres$cost$costfct3, xlab = "Threshold", main = "MAE based", ylab = "Costfunction 2")
-    polygon(polygon_x, polygon_y, col = rgb(0.6, 0.6, 0.6, 0.3), border = NA)
+    add_panel_label("a)")
+
+    plot(cvres$thr, cvres$cost$costfct3,
+         xlab = "Threshold",
+         main = "MAE based",
+         ylab = "Costfunction 2")
+    polygon(polygon_x, polygon_y,
+            col = rgb(0.6, 0.6, 0.6, 0.3),
+            border = NA)
     abline(v = cvres$thr[cvres$cost$costfct3 == min(cvres$cost$costfct3)])
-    splc3 <- smooth.spline(cvres$thr, cvres$cost$costfct3, df=5)
+    splc3 <- smooth.spline(cvres$thr, cvres$cost$costfct3, df = 5)
     lines(splc3, col = "red", lwd = 2)
+    add_panel_label("b)")
   }
 
   if (!is.null(show_errors)) {
+
     # plot errors
     par(mfrow = c(2, 2))
-    boxplot(t(cvres$errors$bias), names = cvres$thr, main = "BIAS")
+
+    boxplot(t(cvres$errors$bias),
+            names = cvres$thr,
+            main = "BIAS")
     abline(h = 0)
-    boxplot(t(cvres$errors$mae), names = cvres$thr, main = "MAE")
+    add_panel_label("a)")
+
+    boxplot(t(cvres$errors$mae),
+            names = cvres$thr,
+            main = "MAE")
     abline(h = 0)
-    boxplot(t(cvres$errors$rse), names = cvres$thr, main = "RSE")
+    add_panel_label("b)")
+
+    boxplot(t(cvres$errors$rse),
+            names = cvres$thr,
+            main = "RSE")
     abline(h = 0)
-    boxplot(t(cvres$errors$drse), names = cvres$thr, main = "dRSE")
+    add_panel_label("c)")
+
+    boxplot(t(cvres$errors$drse),
+            names = cvres$thr,
+            main = "dRSE")
     abline(h = 0)
+    add_panel_label("d)")
   }
 }
 
