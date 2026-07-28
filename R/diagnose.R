@@ -348,6 +348,11 @@ diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, yli
   parameters <- c("alpha", "beta", "mu", "sigma")
   ylabels <- c("alpha", "beta", "mu", "sigma")
 
+  # Default y-axis limits
+  if (is.null(ylim)) {
+    ylim <- c(-1.5, 1.5)
+  }
+
   # Set up a 2x2 plotting layout
   par(mfrow = c(2, 2))
 
@@ -369,15 +374,10 @@ diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, yli
     p_ulim <- p_ulim[valid_indices]
     maxd_thr_valid <- maxd_thr[valid_indices]
 
-    # Set parameter-specific y-axis limits
-    if (is.null(ylim)) {
-      if (param %in% c("alpha", "sigma")) {
-        ylim_use <- c(-0.05, 1.5)
-      } else {
-        ylim_use <- c(-1.5, 1.5)
-      }
-    } else {
-      ylim_use <- ylim
+    # Use supplied limits, but force alpha and sigma to start at 0
+    ylim_use <- ylim
+    if (param %in% c("alpha", "sigma")) {
+      ylim_use[1] <- 0
     }
 
     # Plot center estimate
@@ -418,12 +418,12 @@ diagnose_maxds <- function(models_maxds_lst, maxd_thr, X_var_str, Y_var_str, yli
       ylab = ylabel
     )
 
-    # Reference lines
+    # Add horizontal reference lines
     abline(h = 0,   col = "gray", lwd = 0.8, lty = 1)
     abline(h = 1,   col = "gray", lwd = 0.8, lty = 1)
     abline(h = -1,  col = "gray", lwd = 0.8, lty = 1)
     abline(h = 0.5, col = "gray", lwd = 0.8, lty = 3)
-    abline(h = -0.5,col = "gray", lwd = 0.8, lty = 3)
+    abline(h = -0.5, col = "gray", lwd = 0.8, lty = 3)
   }
 }
 
