@@ -1,11 +1,10 @@
 Package: envex
 Type: Package
-Title: What the Package Does (Title Case)
+Title: EnvEx - Environmental Extremes
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Author: Patrik Bohlinger
+Maintainer: Patrik Bohlinger <patrikb@met.no>
+Description: EnvEx models non-stationary and multivariate extreme values as typically need in a metocean or climate context.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

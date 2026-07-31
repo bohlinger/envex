@@ -661,29 +661,31 @@ display_joint_densities <- function(preds_maxds,
 plot_cvres <- function(cvres, limits = NULL, show_errors = NULL) {
   #' Plots the results from the cross-validation procedure
   #' @export
-
   # print values of minimum
   print(c(cvres$thr[cvres$cost$costfct1 == min(cvres$cost$costfct1)],
           cvres$thr[cvres$cost$costfct3 == min(cvres$cost$costfct3)]))
-
   # Helper function to add panel label
-  add_panel_label <- function(label) {
+  add_panel_label <- function(label, center = FALSE) {
     usr <- par("usr")
+    if (center) {
+      x_pos <- usr[1] + 0.5 * diff(usr[1:2])
+      adj_val <- c(0.5, 1)
+    } else {
+      x_pos <- usr[1] + 0.03 * diff(usr[1:2])
+      adj_val <- c(0, 1)
+    }
     text(
-      x = usr[1] + 0.03 * diff(usr[1:2]),
+      x = x_pos,
       y = usr[4] - 0.03 * diff(usr[3:4]),
       labels = label,
-      adj = c(0, 1),
+      adj = adj_val,
       font = 2,
       cex = 1.2
     )
   }
-
   if (is.null(limits)) {
-
     # plot mean cost-function
     par(mfrow = c(1, 2))
-
     plot(cvres$thr, cvres$cost$costfct1,
          xlab = "Threshold",
          main = "MSE based",
@@ -691,8 +693,7 @@ plot_cvres <- function(cvres, limits = NULL, show_errors = NULL) {
     abline(v = cvres$thr[cvres$cost$costfct1 == min(cvres$cost$costfct1)])
     splc1 <- smooth.spline(cvres$thr, cvres$cost$costfct1, df = 5)
     lines(splc1, col = "red", lwd = 2)
-    add_panel_label("a)")
-
+    add_panel_label("a)", center = TRUE)
     plot(cvres$thr, cvres$cost$costfct3,
          xlab = "Threshold",
          main = "MAE based",
@@ -700,18 +701,14 @@ plot_cvres <- function(cvres, limits = NULL, show_errors = NULL) {
     abline(v = cvres$thr[cvres$cost$costfct3 == min(cvres$cost$costfct3)])
     splc3 <- smooth.spline(cvres$thr, cvres$cost$costfct3, df = 5)
     lines(splc3, col = "red", lwd = 2)
-    add_panel_label("b)")
-
+    add_panel_label("b)", center = TRUE)
   } else {
-
     # Add the shaded region
     x1 <- limits[1]
     x2 <- limits[2]
     polygon_x <- c(x1, x2, x2, x1)
     polygon_y <- c(-1000, -1000, 1000, 1000)
-
     par(mfrow = c(1, 2))
-
     plot(cvres$thr, cvres$cost$costfct1,
          xlab = "Threshold",
          main = "MSE based",
@@ -723,7 +720,6 @@ plot_cvres <- function(cvres, limits = NULL, show_errors = NULL) {
     splc1 <- smooth.spline(cvres$thr, cvres$cost$costfct1, df = 5)
     lines(splc1, col = "red", lwd = 2)
     add_panel_label("a)")
-
     plot(cvres$thr, cvres$cost$costfct3,
          xlab = "Threshold",
          main = "MAE based",
@@ -736,30 +732,24 @@ plot_cvres <- function(cvres, limits = NULL, show_errors = NULL) {
     lines(splc3, col = "red", lwd = 2)
     add_panel_label("b)")
   }
-
   if (!is.null(show_errors)) {
-
     # plot errors
     par(mfrow = c(2, 2))
-
     boxplot(t(cvres$errors$bias),
             names = cvres$thr,
             main = "BIAS")
     abline(h = 0)
     add_panel_label("a)")
-
     boxplot(t(cvres$errors$mae),
             names = cvres$thr,
             main = "MAE")
     abline(h = 0)
     add_panel_label("b)")
-
     boxplot(t(cvres$errors$rse),
             names = cvres$thr,
             main = "RSE")
     abline(h = 0)
     add_panel_label("c)")
-
     boxplot(t(cvres$errors$drse),
             names = cvres$thr,
             main = "dRSE")
@@ -905,7 +895,13 @@ vis_sim_storms <- function(res, xlim=c(0,15), ylim=c(0,25), storm_idx=1){
 
 show_sim_pop <- function(res, xlim=c(0,15), ylim=c(0,25), xstr="tm2", ystr="hs", steepness=FALSE){
   # show population of all simulated RP storms
-  par(mfrow = c(1, 1))
+  par(
+    mfrow = c(1, 1),
+    cex.lab = 1.1,   # axis labels
+    cex.axis = 1.1,  # tick labels
+    cex.main = 1.1,  # main title (if used)
+    cex.sub = 1.1    # subtitle (if used)
+  )
 
   # joint xstr/ystr (e.g. tm2/hs)
   for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
@@ -919,7 +915,6 @@ show_sim_pop <- function(res, xlim=c(0,15), ylim=c(0,25), xstr="tm2", ystr="hs",
     indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)
     par(new=TRUE)
     indiv_peak <- subset(indiv_storm, hs == max(indiv_storm[[ystr]]))
-    #plot(indiv_peak[[xstr]], indiv_peak[[ystr]], pch=1, xlim=xlim, ylim=ylim, cex=.5, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("orange", alpha.f = .5))
     plot(indiv_peak[[xstr]], indiv_peak[[ystr]], pch=21, xlim=xlim, ylim=ylim, cex=.5,
          xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',
          col = "grey30", bg = adjustcolor("darkorange", alpha.f = .8), lwd = 0.3)
@@ -965,8 +960,9 @@ show_sim_pop <- function(res, xlim=c(0,15), ylim=c(0,25), xstr="tm2", ystr="hs",
     pch = c(20, 21, 20, 21),
     lty = c(NA, NA, 1, NA),
     lwd = c(NA, NA, 1, NA),
-    pt.cex = c(1, 1, 1, 1),
-    bty = "n"
+    pt.cex = c(1.1, 1.1, 1.1, 1.1),
+    bty = "n",
+    cex = 1.2,       # <-- increase legend text size
   )
 }
 

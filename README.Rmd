@@ -15,6 +15,7 @@ EnvEx provides functions to model non-stationary and joint extremes. Examples fo
 You can install the development version from GitHub with:
 
 ``` r
+remotes::install_github('bohlinger/EnvEx')
 ```
 
 ## Example
