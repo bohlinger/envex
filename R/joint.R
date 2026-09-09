@@ -150,7 +150,10 @@ compute_probs <- function(margs_thr, margs_gpd, dfin = NULL, list_var = NULL,
 
     tmp <- array(0, c(length(shapes))) * NA
     for (i in seq_along(tmp)) {
-      tmp[i] <- margs_thr[[n]]$tau + (1 - margs_thr[[n]]$tau) *
+      #tmp[i] <- margs_thr[[n]]$tau + (1 - margs_thr[[n]]$tau) *
+      #  pgpd(dfin[[n]][i], mu = threshold[i], sigma = scales[i],
+      #       xi = shapes[i], lower.tail = TRUE)
+      tmp[i] <- margs_thr[[n]]$likdata$args$tau + (1 - margs_thr[[n]]$likdata$args$tau) *
         pgpd(dfin[[n]][i], mu = threshold[i], sigma = scales[i],
              xi = shapes[i], lower.tail = TRUE)
     }
@@ -159,7 +162,8 @@ compute_probs <- function(margs_thr, margs_gpd, dfin = NULL, list_var = NULL,
 
     # combine probs
     tmp <- probs_gpd[[n]]
-    tmp[tmp < (margs_thr[[n]]$tau + thr_ecdf_gpd_transition_margin)] <- probs_ecdf[[n]][tmp < (margs_thr[[n]]$tau + thr_ecdf_gpd_transition_margin)]
+    #tmp[tmp < (margs_thr[[n]]$tau + thr_ecdf_gpd_transition_margin)] <- probs_ecdf[[n]][tmp < (margs_thr[[n]]$tau + thr_ecdf_gpd_transition_margin)]
+    tmp[tmp < (margs_thr[[n]]$likdata$args$tau + thr_ecdf_gpd_transition_margin)] <- probs_ecdf[[n]][tmp < (margs_thr[[n]]$likdata$args$tau + thr_ecdf_gpd_transition_margin)]
     probs[[n]] <- unlist(tmp)
     rm(tmp)
   }
@@ -333,6 +337,7 @@ fit_margs_bstrp <- function(dfin,
 
     print(c("bootstrap nr:", i))
     print("fit threshold model")
+
     margs_thr <- fit_marginal_models_thr(dfin = dfin[[i]],
                                          list_var = list_var,
                                          thr = extr_thr,

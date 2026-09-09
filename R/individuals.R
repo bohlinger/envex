@@ -95,6 +95,56 @@ storm_trajectory_Hmax <- function(hs_traj, tm02_traj, tdelta=3600, llim=0,
               "deriv" = deriv, "x_lst_diff" = x_lst_diff))
 }
 
+storm_trajectory_Cmax <- function(hs_traj, tdelta=3600, llim=0,
+                                  ulim=50, integr_step=.1, dist="forristall3D",
+                                  verbose=FALSE, ...){
+  #'
+  #' @export
+
+  x_lst <- seq(llim,ulim,integr_step)
+  P_i_lst <- array(0, length(hs_traj))*NA
+  P_s_lst <- array(0, length(x_lst))*NA
+
+  for (j in 1:length(x_lst)) {
+    for (i in 1:length(hs_traj)) {
+      # Compute P based on Hmax: x
+      Hs <- hs_traj[i]
+
+      # P(H>=x) one draw
+      if (dist == "rayleigh_crest"){
+        P_H <- rayleigh_Hs(Hs, x_lst[j])
+      } else if (dist == "forristall_crest_2nd") {
+        P_H <- forristall_Hs(Hs, x_lst[j])
+      } else {
+        print("dist is not valid!")
+      }
+      # Compute N based on Tm02
+      N_i <- 1/tm02_traj[i]*tdelta
+
+      # get probability for all draws (N) from P_H
+      P_i <- 1-(1-P_H)**N_i
+      P_i_lst[i] <- 1-P_i
+    }
+    P_s <- 1-prod(P_i_lst)
+    P_s_lst[j] <- P_s
+  }
+
+  deriv <- diff(1-P_s_lst)
+  x_lst_diff <- x_lst[2:length(x_lst)]
+
+  # find max of deriv
+  mode_of_deriv <- x_lst_diff[which.max(deriv)]
+  #E_of_deriv <- sum(deriv*x_lst_diff)  # valid but has a slight positive bias
+  # therefore we use the following one which is less depending on the chosen grid.
+  E_of_deriv <- sum((P_s_lst[-length(P_s_lst)] + P_s_lst[-1])/2 * diff(x_lst))
+  if (verbose==TRUE){
+    print(c('Most likely Hmax:', mode_of_deriv))
+    print(c('Expected Hmax:', E_of_deriv))
+  }
+  return(list("Hmax_mode" = mode_of_deriv, "Hmax_E" = E_of_deriv,
+              "deriv" = deriv, "x_lst_diff" = x_lst_diff))
+}
+
 forristall_Hs <- function(Hs,H,a=0.681,b=2.126){
 
   #' @param Hs Significant wave height
@@ -108,7 +158,7 @@ forristall_Hs <- function(Hs,H,a=0.681,b=2.126){
   return(P)
 }
 
-prevosto_Hs_2nd <- function(Hs,H,a=2.13,b=8.42){
+prevosto_Hs <- function(Hs,H,a=2.13,b=8.42){
   # see e.g. Feld et al 2015 with
   # distribution parameter values from Prevosto et al. 2000
 
@@ -167,6 +217,57 @@ Hmax_forristall_Hs <- function(P,Hs,a=0.681,b=2.126) {
 
   Hmax <- ((log(1/P))**b)*a
   return(Hmax)
+}
+
+rayleigh_crest <- function(Hs, cr) {
+  #' Linear (Rayleigh) crest height distribution
+  #' Assumes narrow-band Gaussian sea surface (first-order wave theory)
+  #'
+  #' @param Hs   Significant wave height
+  #' @param eta  Crest height (same units as Hs)
+  #'
+  #' @return P   Exceedance probability P(crest > cr)
+  #'
+  #' @export
+
+  P <- exp(-8 * (cr / Hs)^2)
+  return(P)
+}
+
+forristall_crest_2nd <- function(Hs, cr, d, Tm01,
+                                 model = c("3D", "2D"), g = 9.81) {
+
+  model <- match.arg(model)
+
+  # Angular frequency
+  omega <- 2 * pi / Tm01
+
+  # Solve linear finite-depth dispersion relation:
+  # omega^2 = g*k*tanh(k*d)
+  f <- function(k) g * k * tanh(k * d) - omega^2
+
+  km <- uniroot(f, lower = 1e-10, upper = 100)$root
+
+  # Wave steepness
+  S1 <- 2 * pi * Hs / (g * Tm01^2)
+
+  # Ursell number
+  Ur <- Hs / (km^2 * d^3)
+
+  # Forristall Weibull parameters
+  if (model == "3D") {
+    alpha <- 0.3536 + 0.2568 * S1 + 0.0800 * Ur
+    beta  <- 2 - 1.7912 * S1 - 0.5302 * Ur +
+      0.2824 * Ur^2
+  } else {
+    alpha <- 0.3536 + 0.2892 * S1 + 0.1060 * Ur
+    beta  <- 2 - 2.1597 * S1 + 0.0968 * Ur^2
+  }
+
+  # Exceedance probability P(crest > cr)
+  P <- exp(-(cr / (alpha * Hs))^beta)
+
+  return(P)
 }
 
 triangular_storm_traj <- function(HsPeak, tm2_const=10, multiplicator=8,
