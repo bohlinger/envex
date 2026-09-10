@@ -2,6 +2,7 @@
 # EnvEx - **Env**ironmental **Ex**tremes
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
 EnvEx provides functions to model non-stationary and joint extremes.
@@ -54,12 +55,13 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
 ```
 
     ## [1] "apply threshold model to data"
+
     ## [1] "label storms"
     ## [1] "combine and relabel storm peaks that are too close"
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ## 295.389  27.999 323.598
+    ## 358.680  35.966 394.657
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -99,7 +101,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   8.447   0.077   8.526
+    ##   7.118   0.000   7.118
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -206,7 +208,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, "hs", bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.73   13.65   14.46   14.83   15.44   43.76
+    ##   14.81   17.78   19.33   22.36   22.33  179.32
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -546,9 +548,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 14.17
-    ## High sector: 21.77
-    ## Omni: 23.04
+    ## Low sector: 18.99
+    ## High sector: 32.10
+    ## Omni: 33.24
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -587,12 +589,13 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
 ```
 
     ## [1] "apply threshold model to data"
+
     ## [1] "label storms"
     ## [1] "combine and relabel storm peaks that are too close"
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  22.111   0.714  22.828
+    ##  25.046   0.440  25.489
 
 ## Plot picking result
 
@@ -635,7 +638,7 @@ cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
 plot_cvres(cvres, limits = c(.8, .9))
 ```
 
-    ## [1] 0.88 0.88
+    ## [1] 0.90 0.88
 
 ![](README_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
 
@@ -772,9 +775,9 @@ cat(sprintf("Truth: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
 ```
 
     ## Truth: 8.43
-    ## q'2: 8.37
-    ## q3: 8.35
-    ## q4: 8.35
+    ## q'2: 9.39
+    ## q3: 9.71
+    ## q4: 9.35
 
 ## Notes
 

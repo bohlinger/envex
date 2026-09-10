@@ -64,7 +64,7 @@ storm_trajectory_Hmax <- function(hs_traj, tm02_traj, tdelta=3600, llim=0,
       } else if (dist == "forristall") {
         P_H <- forristall_Hs(Hs, x_lst[j])
       } else if (dist == "prevosto") {
-        P_H <- prevosto_Hs_2nd(Hs, x_lst[j])
+        P_H <- prevosto_Hs(Hs, x_lst[j])
       } else {
         print("dist is not valid!")
       }
