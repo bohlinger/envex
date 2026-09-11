@@ -493,7 +493,7 @@ peak_picking <- function(dfin, thr_model_fml,
   } else {
     print("apply threshold model to data")
     m_ald <- evgam(thr_model_fml, dfin, family = "ald",
-                   ald.args = list(tau = thr), knots = knots)
+                   args = list(tau = thr), knots = knots)
 
     dfin[[thr_str]] <- fitted(m_ald)$location
     dfin[[exc_str]] <- dfin[[var_str]] - dfin[[thr_str]]
