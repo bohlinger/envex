@@ -806,18 +806,18 @@ visualize_storm_picking <- function(dfin, dfinall = NULL, xstr = "dt",
          bty = "n")
 }
 
-vis_sim_storms <- function(res, xlim=c(0,15), ylim=c(0,25), storm_idx=1){
+vis_sim_storms <- function(res, xlim=c(0,15), ylim=c(0,25), storm_idx=1, period_str='tm2'){
 
   df_storm_hist <- res$hist_storms[(res$hist_storms$pseudo_storm_idx==storm_idx), ]
   df_storm_sim <- res$sim_storms[(res$sim_storms$pseudo_storm_idx==storm_idx), ]
 
   par(mfrow = c(2, 2))
-  # joint Hs/Tm02
-  plot(res$hist_storms$tm2, res$hist_storms$hs, pch=20, xlim=xlim, ylim=ylim, cex=.3, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n', col='gray')
+  # joint Hs/Tm
+  plot(res$hist_storms[[period_str]], res$hist_storms$hs, pch=20, xlim=xlim, ylim=ylim, cex=.3, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n', col='gray')
   par(new=TRUE)
-  plot(df_storm_hist$tm2, df_storm_hist$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=1, lty=1, lwd=1, xlab='Tm02 [s]', ylab='Hs [s]', main='', col='blue')
+  plot(df_storm_hist[[period_str]], df_storm_hist$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=1, lty=1, lwd=1, xlab='Tm02 [s]', ylab='Hs [s]', main='', col='blue')
   par(new=TRUE)
-  plot(df_storm_sim$tm2, df_storm_sim$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=1, lty=1, lwd=1, xlab='Tm02 [s]', ylab='Hs [s]', main='', col='red')
+  plot(df_storm_sim[[period_str]], df_storm_sim$hs, pch=20, xlim=xlim, ylim=ylim, type='o', cex=1, lty=1, lwd=1, xlab='Tm02 [s]', ylab='Hs [s]', main='', col='red')
   legend("topleft", legend = c("All hist", "Traj Hist", "Traj Sim"),
          col = c("grey", "blue", "red"), pch = c(20, 20, 20), lty = c(NA, 1, 1),
          bg = "white", bty = "n")
@@ -887,9 +887,9 @@ vis_sim_storms <- function(res, xlim=c(0,15), ylim=c(0,25), storm_idx=1){
   mtext("c)", side = 3, line = -1.5, adj = 0.95, cex = 1)
 
   # Ts Tm2
-  plot(df_storm_hist$dt, df_storm_hist$tm2, xlab='', ylab='Tm02 [s]', ylim=xlim, main='', type='o', lty=1, pch=20, col="blue")
+  plot(df_storm_hist$dt, df_storm_hist[[period_str]], xlab='', ylab='Tm02 [s]', ylim=xlim, main='', type='o', lty=1, pch=20, col="blue")
   par(new=TRUE)
-  plot(df_storm_hist$dt, df_storm_sim$tm2, xlab='', ylab='Tm02 [s]', ylim=xlim, main='', type='o', lty=1, pch=20, col="red")
+  plot(df_storm_hist$dt, df_storm_sim[[period_str]], xlab='', ylab='Tm02 [s]', ylim=xlim, main='', type='o', lty=1, pch=20, col="red")
   mtext("d)", side = 3, line = -1.5, adj = 0.95, cex = 1)
 }
 
@@ -909,7 +909,7 @@ show_sim_pop <- function(res, xlim=c(0,15), ylim=c(0,25), xstr="tm2", ystr="hs",
     plot(indiv_storm[[xstr]], indiv_storm[[ystr]], pch=20, xlim=xlim, ylim=ylim, type='o', cex=.3, lty=1, lwd=.2, xlab='', ylab='', main='', xaxt = 'n', yaxt = 'n',  col = adjustcolor("red", alpha = 0.1))
     par(new=TRUE)
   }
-  plot(res$hist_storms[[xstr]], res$hist_storms[[ystr]], pch=20, xlim=xlim, ylim=ylim, cex=.3, xlab='Tm02 [s]', ylab='Hs [m]', main='', col = adjustcolor("black", alpha = 0.4) )
+  plot(res$hist_storms[[xstr]], res$hist_storms[[ystr]], pch=20, xlim=xlim, ylim=ylim, cex=.3, xlab='Tm [s]', ylab='Hs [m]', main='', col = adjustcolor("black", alpha = 0.4) )
 
   for (i in 1:length(unique(res$sim_storms$pseudo_storm_idx))){
     indiv_storm <- subset(res$sim_storms, pseudo_storm_idx == i)

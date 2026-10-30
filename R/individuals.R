@@ -95,9 +95,12 @@ storm_trajectory_Hmax <- function(hs_traj, tm02_traj, tdelta=3600, llim=0,
               "deriv" = deriv, "x_lst_diff" = x_lst_diff))
 }
 
-storm_trajectory_Cmax <- function(hs_traj, tdelta=3600, llim=0,
-                                  ulim=50, integr_step=.1, dist="forristall3D",
-                                  verbose=FALSE, ...){
+storm_trajectory_Cmax <- function(hs_traj, tm02_traj,
+                                  tdelta=3600, llim=0,
+                                  ulim=50, integr_step=.1,
+                                  tm01_traj,
+                                  dist="forristall_crest_2nd_3D",
+                                  d=500, verbose=FALSE, ...){
   #'
   #' @export
 
@@ -112,9 +115,11 @@ storm_trajectory_Cmax <- function(hs_traj, tdelta=3600, llim=0,
 
       # P(H>=x) one draw
       if (dist == "rayleigh_crest"){
-        P_H <- rayleigh_Hs(Hs, x_lst[j])
-      } else if (dist == "forristall_crest_2nd") {
-        P_H <- forristall_Hs(Hs, x_lst[j])
+        P_C <- rayleigh_crest(Hs, x_lst[j])
+      } else if (dist == "forristall_crest_2nd_2D") {
+        P_C <- forristall_crest_2nd(Hs, x_lst[j], d, Tm01 = tm01_traj[i], model = c("2D"))
+      } else if (dist == "forristall_crest_2nd_3D") {
+        P_C <- forristall_crest_2nd(Hs, x_lst[j], d, Tm01 = tm01_traj[i], model = c("3D"))
       } else {
         print("dist is not valid!")
       }
@@ -122,7 +127,8 @@ storm_trajectory_Cmax <- function(hs_traj, tdelta=3600, llim=0,
       N_i <- 1/tm02_traj[i]*tdelta
 
       # get probability for all draws (N) from P_H
-      P_i <- 1-(1-P_H)**N_i
+      # P_i <- 1-(1-P_C)**N_i less precise that P_i <- -expm1(N_i * log1p(-P_C))
+      P_i <- -expm1(N_i * log1p(-P_C))
       P_i_lst[i] <- 1-P_i
     }
     P_s <- 1-prod(P_i_lst)

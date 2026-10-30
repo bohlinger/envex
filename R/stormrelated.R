@@ -654,10 +654,10 @@ add_angle <- function(a, b, L=360) {
   (a + b) %% L
 }
 
-anchor_sim_storms <- function(df_joint_pots, df_hist_pots, df_hist_storms, matched_storm_idx){
+anchor_sim_storms <- function(df_joint_pots, df_hist_pots, df_hist_storms, matched_storm_idx, period_str = 'tm2'){
   # scale and rotate storms
 
-  var_lst <- c("hs", "tm2", "Pdir", "doy", "storm_idx")
+  var_lst <- c("hs", period_str, "Pdir", "doy", "storm_idx")
 
   sim_storm_df <- data.frame(matrix(ncol = 5, nrow = 0))
   colnames(sim_storm_df) <- var_lst
@@ -675,13 +675,13 @@ anchor_sim_storms <- function(df_joint_pots, df_hist_pots, df_hist_storms, match
     dirdiff <- circ_diff(df_joint_pots$Pdir[i], df_pots_filtered$Pdir)
 
     rotated_angle <- add_angle(df_storms_filtered$Pdir, dirdiff, L=360)
-    scaled_storm <- scale_storm(df_storms_filtered$hs, df_storms_filtered$tm2, scaling)
+    scaled_storm <- scale_storm(df_storms_filtered$hs, df_storms_filtered[[period_str]], scaling)
 
     doydiff <- circ_diff(df_joint_pots$doy[i], df_pots_filtered$doy, L=365)
     adjusted_doy <- add_angle(df_storms_filtered$doy, doydiff, L=365)
 
     tmplst[['hs']] <- scaled_storm[[1]]
-    tmplst[['tm2']] <- scaled_storm[[2]]
+    tmplst[[period_str]] <- scaled_storm[[2]]
     tmplst[['Pdir']] <- rotated_angle
     tmplst[['doy']] <- adjusted_doy
 
