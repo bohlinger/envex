@@ -776,7 +776,7 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
   return(df_out)
 }
 
-predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
+predict_margs_old <- function(margs, nr_of_years, RP, nmc = 1,
                           var_lst = NULL, nbstrp = NULL,
                           covarstr_lst,
                           condition = NULL, grid_interval = NULL,
@@ -811,6 +811,88 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
     }
     preds_lst[[b]] <- preds_tmp_lst
   }
+  return(preds_lst)
+}
+
+apply_counter_fact_vars <- function(dfin, add_counter_fact_vars) {
+  if (is.null(add_counter_fact_vars)) {
+    return(dfin)
+  }
+
+  for (nm in names(add_counter_fact_vars)) {
+    if (!(nm %in% names(dfin))) {
+      stop(sprintf("Variable '%s' not found in dfin", nm))
+    }
+
+    val <- add_counter_fact_vars[[nm]]
+
+    if (length(val) == 1L) {
+      dfin[[nm]] <- rep(val, nrow(dfin))
+    } else {
+      if (length(val) != nrow(dfin)) {
+        stop(sprintf(
+          "Length of '%s' does not match nrow(dfin): %d vs %d",
+          nm, length(val), nrow(dfin)
+        ))
+      }
+      dfin[[nm]] <- val
+    }
+  }
+
+  dfin
+}
+
+
+predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
+                          var_lst = NULL, nbstrp = NULL,
+                          covarstr_lst,
+                          condition = NULL, grid_interval = NULL,
+                          family_occ = "pois",
+                          breaks = NULL,
+                          add_counter_fact_vars = NULL) {
+  #' @export
+  #'
+
+  if (is.null(var_lst)) {
+    var_lst <- names(margs[[1]]$thr)
+  }
+
+  if (is.null(nbstrp)) {
+    nbstrp <- length(margs)
+  }
+
+  preds_lst <- vector("list", nbstrp)
+
+  for (b in seq_len(nbstrp)) {
+    print(c("number of boostraps (predict_margs):", b))
+
+    preds_tmp_lst <- list()
+
+    for (n in seq_along(var_lst)) {
+      dfin <- margs[[b]]$gpd[[var_lst[n]]]$data
+
+      dfin <- apply_counter_fact_vars(dfin, add_counter_fact_vars)
+
+      preds <- predict_marg(
+        margs[[b]],
+        nr_of_years,
+        RP,
+        varstr = var_lst[n],
+        nmc = nmc,
+        covarstr_lst,
+        condition = condition,
+        grid_interval = grid_interval,
+        dfin = dfin,
+        family_occ = family_occ,
+        breaks = breaks
+      )
+
+      preds_tmp_lst[[var_lst[n]]] <- preds
+    }
+
+    preds_lst[[b]] <- preds_tmp_lst
+  }
+
   return(preds_lst)
 }
 

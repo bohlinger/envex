@@ -526,7 +526,6 @@ prime_varstr = 'y'
 formula_string <- paste(prime_varstr, "~ te(doy, bs = c('cc'), k = 8)")
 peak_picking_thr_model_fml <- as.formula(formula_string)
 
-
 # decorrelation time scale of 1 day
 # this corresponds to 24 consecutive x values
 system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
@@ -557,6 +556,7 @@ model_fml_thr[[prime_varstr]] <- fml_ald
 model_fml_gpd[[prime_varstr]] <- fml_gpd
 
 extr_thr_lst <- seq(.4,.98,.02)
+knots <- list(doy = c(0, 366))
 
 ### do crossvalidation error metric based ######################################
 cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,

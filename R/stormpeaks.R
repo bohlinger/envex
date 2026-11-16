@@ -80,6 +80,17 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
   for (n in covarstr_lst) {
     newdf[[n]] <- mv_grid[[n]]
   }
+
+  #
+  # AI infused
+  #
+  # Add fixed counter-factual x to prediction grid if x is in the model formula
+  if ("x" %in% all.vars(stats::delete.response(stats::terms(model_nr_of_events$formula))) &&
+      !"x" %in% colnames(newdf)) {
+    newdf$x <- rep(x_ref, nrow(newdf))
+  }
+  #
+
   pred_lambdas <- predict(model_nr_of_events, newdata = newdf, type = "response")
 
   # get max of predicted lambdas for rejection probability
@@ -108,6 +119,15 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
   }
 
   pred_data <- as.data.frame(samples)
+  #
+  # AI infused
+  #
+  # Add fixed counter-factual x to sampled prediction data if x is in model formula
+  if ("x" %in% all.vars(stats::delete.response(stats::terms(model_nr_of_events$formula))) &&
+      !"x" %in% colnames(pred_data)) {
+    pred_data$x <- rep(x_ref, nrow(pred_data))
+  }
+  #
   new_pred_lambda <- predict(model_nr_of_events, newdata = pred_data, type = "response")
 
   counts_lst <- NULL
@@ -485,7 +505,7 @@ peak_picking <- function(dfin, thr_model_fml,
                          knots = NULL){
   #' @export
 
-
+  m_ald <- NULL
   if (is.null(thr_model_fml)) {
     print("apply constant threshold to data")
     dfin[[thr_str]] <- array(1, length(dfin[[var_str]])) * thr
