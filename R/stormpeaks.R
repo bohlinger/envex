@@ -28,12 +28,96 @@ generate_prediction_grid <- function(var_breaks, var_lst, nr_sim){
   return(as.data.frame(pred_list))
 }
 
-produce_storm_occurrences_pois <- function(model, breaks, covar_lst, RP, nr_of_years) {
+extract_formula_from_model_object <- function(model_object) {
+  if (is.null(model_object)) {
+    return(NULL)
+  }
+
+  if (inherits(model_object, "formula")) {
+    return(model_object)
+  }
+
+  if (inherits(model_object, "terms")) {
+    return(stats::formula(model_object))
+  }
+
+  if (is.list(model_object)) {
+    for (nm in c("formula", "terms")) {
+      if (!is.null(model_object[[nm]])) {
+        candidate <- model_object[[nm]]
+        if (inherits(candidate, "formula") || inherits(candidate, "terms")) {
+          return(if (inherits(candidate, "terms")) stats::formula(candidate) else candidate)
+        }
+      }
+    }
+
+    if (!is.null(model_object$call)) {
+      for (nm in c("formula", "terms")) {
+        candidate <- model_object$call[[nm]]
+        if (inherits(candidate, "formula") || inherits(candidate, "terms")) {
+          return(if (inherits(candidate, "terms")) stats::formula(candidate) else candidate)
+        }
+      }
+    }
+
+    for (nm in names(model_object)) {
+      out <- extract_formula_from_model_object(model_object[[nm]])
+      if (!is.null(out)) {
+        return(out)
+      }
+    }
+  }
+
+  NULL
+}
+
+inject_missing_scenario_covariates <- function(newdata, model_object, scenario) {
+  if (is.null(newdata) || is.null(scenario)) {
+    return(newdata)
+  }
+
+  model_formula <- extract_formula_from_model_object(model_object)
+  if (is.null(model_formula) || !inherits(model_formula, "formula")) {
+    return(newdata)
+  }
+
+  required_vars <- all.vars(stats::delete.response(stats::terms(model_formula)))
+  required_vars <- unique(required_vars[required_vars != ""])
+
+  for (nm in required_vars) {
+    if (!(nm %in% names(scenario))) {
+      next
+    }
+
+    val <- scenario[[nm]]
+    if (length(val) == 0L) {
+      stop(sprintf("Scenario value '%s' is empty", nm))
+    }
+
+    if (nrow(newdata) == 0L) {
+      next
+    }
+
+    if (length(val) == 1L) {
+      newdata[[nm]] <- rep(val, nrow(newdata))
+    } else {
+      newdata[[nm]] <- rep_len(val, nrow(newdata))
+    }
+  }
+
+  newdata
+}
+
+produce_storm_occurrences_pois <- function(model, breaks, covar_lst, RP, nr_of_years,
+                                           scenario = NULL) {
 
   nr_per_year <- nrow(model$data) / nr_of_years
   nr_sim      <- rpois(1, nr_per_year * RP)
 
   newdfin <- generate_prediction_grid(breaks, covar_lst, nr_sim)
+  if (!is.null(scenario)) {
+    newdfin <- inject_missing_scenario_covariates(newdfin, model, scenario)
+  }
 
   preds_lambda <- exp(predict(model, newdata = newdfin)$location)
   newdfin$counts <- rpois(n = length(preds_lambda), lambda = preds_lambda)
@@ -52,7 +136,8 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
                                       covarstr_lst,
                                       dfin = dfin,
                                       condition = NULL,
-                                      grid_interval = NULL) {
+                                      grid_interval = NULL,
+                                      scenario = NULL) {
   # simulate storm peaks from poisson
   print(c("nr_of_events:", nr_of_events))
 
@@ -81,15 +166,9 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
     newdf[[n]] <- mv_grid[[n]]
   }
 
-  #
-  # AI infused
-  #
-  # Add fixed counter-factual x to prediction grid if x is in the model formula
-  if ("x" %in% all.vars(stats::delete.response(stats::terms(model_nr_of_events$formula))) &&
-      !"x" %in% colnames(newdf)) {
-    newdf$x <- rep(x_ref, nrow(newdf))
+  if (!is.null(scenario)) {
+    newdf <- inject_missing_scenario_covariates(newdf, model_nr_of_events, scenario)
   }
-  #
 
   pred_lambdas <- predict(model_nr_of_events, newdata = newdf, type = "response")
 
@@ -119,15 +198,10 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
   }
 
   pred_data <- as.data.frame(samples)
-  #
-  # AI infused
-  #
-  # Add fixed counter-factual x to sampled prediction data if x is in model formula
-  if ("x" %in% all.vars(stats::delete.response(stats::terms(model_nr_of_events$formula))) &&
-      !"x" %in% colnames(pred_data)) {
-    pred_data$x <- rep(x_ref, nrow(pred_data))
+  if (!is.null(scenario)) {
+    pred_data <- inject_missing_scenario_covariates(pred_data, model_nr_of_events, scenario)
   }
-  #
+
   new_pred_lambda <- predict(model_nr_of_events, newdata = pred_data, type = "response")
 
   counts_lst <- NULL
@@ -146,12 +220,8 @@ produce_storm_occurrences_rejection <- function(nr_of_events, RP,
     counts_lst <- unlist(counts_lst)
     keep_unlist <- unlist(keep_lst)
 
-    if (length(covarstr_lst) == 1) {
-      dfcounts <- NULL
-      dfcounts[[covarstr_lst[1]]] <- pred_data[keep_unlist, ]
-      dfcounts <- as.data.frame(dfcounts)
-    } else {
-      dfcounts <- pred_data[keep_unlist, ]
+    dfcounts <- pred_data[keep_unlist, , drop = FALSE]
+    if (length(covarstr_lst) != 1) {
       dfcounts$counts <- counts_lst
     }
 
@@ -365,7 +435,7 @@ fit_marginal_models_occ <- function(dfin, model_fml, nr_of_years,
   # if wts are not given equal weighting is assumed
   if (is.null(nodes)) {
     nodes <- NULL
-    for (n in names(knots)){
+    for (n in names(knots)) {
       if (is.null(interval[[n]])) {
         interval[[n]] <- 1
       }

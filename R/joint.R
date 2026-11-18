@@ -115,7 +115,7 @@ compute_lp_margs <- function(probs) {
   #' @export
   #'
   lp_margs <- NULL
-  for (n in names(probs)) {
+  for (n in names(probs) ) {
     lp_margs[[n]] <- qlaplace(probs[[n]])
   }
   return(lp_margs)
@@ -688,7 +688,8 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
                          condition = NULL, grid_interval = NULL,
                          dfin = NULL,
                          family_occ = 'pois',
-                         breaks = NULL) {
+                         breaks = NULL,
+                         scenario = NULL) {
   #' @export
   #'
 
@@ -710,14 +711,16 @@ predict_marg <- function(margs, nr_of_years, RP, varstr = NULL, nmc = 1,
   if (family_occ == 'pois'){
     df_storm_cov <- produce_storm_occurrences_pois(margs$occ[[varstr]],
                                                    breaks, covarstr_lst,
-                                                   RP, nr_of_years)
+                                                   RP, nr_of_years,
+                                                   scenario = scenario)
   } else if (family_occ == 'pp'){
     df_storm_cov <- produce_storm_occurrences_rejection(nr_of_events, RP, nr_of_years,
                                                         margs$occ[[varstr]],
                                                         covarstr_lst,
                                                         dfin = dfin,
                                                         condition = condition,
-                                                        grid_interval = grid_interval)
+                                                        grid_interval = grid_interval,
+                                                        scenario = scenario)
   }
 
   if (dim(df_storm_cov)[1] > 0) {
@@ -820,23 +823,20 @@ apply_counter_fact_vars <- function(dfin, add_counter_fact_vars) {
   }
 
   for (nm in names(add_counter_fact_vars)) {
-    if (!(nm %in% names(dfin))) {
-      stop(sprintf("Variable '%s' not found in dfin", nm))
-    }
-
     val <- add_counter_fact_vars[[nm]]
 
-    if (length(val) == 1L) {
-      dfin[[nm]] <- rep(val, nrow(dfin))
-    } else {
-      if (length(val) != nrow(dfin)) {
-        stop(sprintf(
-          "Length of '%s' does not match nrow(dfin): %d vs %d",
-          nm, length(val), nrow(dfin)
-        ))
-      }
-      dfin[[nm]] <- val
+    if (length(val) == 0L) {
+      stop(sprintf("Fixed counter-factual value for '%s' is empty", nm))
     }
+
+    if (length(val) != 1L) {
+      stop(sprintf(
+        "Counter-factual '%s' has %d values. Use scenario = list(%s = values) for a range.",
+        nm, length(val), nm
+      ))
+    }
+
+    dfin[[nm]] <- rep(val, nrow(dfin))
   }
 
   dfin
@@ -849,7 +849,8 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
                           condition = NULL, grid_interval = NULL,
                           family_occ = "pois",
                           breaks = NULL,
-                          add_counter_fact_vars = NULL) {
+                          add_counter_fact_vars = NULL,
+                          scenario = NULL) {
   #' @export
   #'
 
@@ -859,6 +860,10 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
 
   if (is.null(nbstrp)) {
     nbstrp <- length(margs)
+  }
+
+  if (is.null(scenario) && !is.null(add_counter_fact_vars)) {
+    scenario <- add_counter_fact_vars
   }
 
   preds_lst <- vector("list", nbstrp)
@@ -884,7 +889,8 @@ predict_margs <- function(margs, nr_of_years, RP, nmc = 1,
         grid_interval = grid_interval,
         dfin = dfin,
         family_occ = family_occ,
-        breaks = breaks
+        breaks = breaks,
+        scenario = scenario
       )
 
       preds_tmp_lst[[var_lst[n]]] <- preds
