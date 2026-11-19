@@ -60,7 +60,7 @@ system.time(df_pick <- peak_picking(ds, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ## 335.898  47.096 383.146
+    ## 331.275  41.791 373.622
 
 ``` r
 # additional variables were added, i.e. exc, thr, and storm_idx
@@ -100,7 +100,7 @@ system.time(res_bstrp <- run_bootstrap_storms_pots(df = df_pick$storms,
 ```
 
     ##    user  system elapsed 
-    ##   7.038   0.000   7.040
+    ##   6.673   0.000   6.686
 
 ``` r
 bstrp_storms_lst <- res_bstrp$boot_samples
@@ -207,7 +207,7 @@ dhs <- diagnose_margs_preds_density(preds_margs_lst, "hs", bw=.1, xlim=c(5,40))
 
     ## [1] "summary maxes:"
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-    ##   11.65   13.53   14.43   14.95   15.62   66.17
+    ##   11.84   13.65   14.61   15.40   16.25   53.09
 
 ``` r
 abline(v = max(df_pick$pots$hs), col = "gray", lwd = 2)
@@ -547,9 +547,9 @@ cat(sprintf("Low sector: %.2f\nHigh sector: %.2f\nOmni: %.2f\n",
             RP_f_hmax_low, RP_f_hmax_high, RP_f_hmax))
 ```
 
-    ## Low sector: 13.60
-    ## High sector: 22.30
-    ## Omni: 22.74
+    ## Low sector: 12.98
+    ## High sector: 22.60
+    ## Omni: 23.14
 
 ## Apply to synthetic, univariate, non-stationary data
 
@@ -579,7 +579,6 @@ prime_varstr = 'y'
 formula_string <- paste(prime_varstr, "~ te(doy, bs = c('cc'), k = 8)")
 peak_picking_thr_model_fml <- as.formula(formula_string)
 
-
 # decorrelation time scale of 1 day
 # this corresponds to 24 consecutive x values
 system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
@@ -593,7 +592,7 @@ system.time(df_pick <- peak_picking(ds_subset, peak_picking_thr_model_fml,
     ## [1] "find peaks for combined storms"
 
     ##    user  system elapsed 
-    ##  25.722   0.522  26.295
+    ##  22.758   0.501  23.265
 
 ## Plot picking result
 
@@ -619,6 +618,7 @@ model_fml_thr[[prime_varstr]] <- fml_ald
 model_fml_gpd[[prime_varstr]] <- fml_gpd
 
 extr_thr_lst <- seq(.4,.98,.02)
+knots <- list(doy = c(0, 366))
 
 ### do crossvalidation error metric based ######################################
 cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
@@ -636,7 +636,7 @@ cvres <- cross_validation(dfin = df_pick$pots, nr_cv = 5,
 plot_cvres(cvres, limits = c(.8, .9))
 ```
 
-    ## [1] 0.9 0.9
+    ## [1] 0.84 0.88
 
 ![](README_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
 
@@ -773,11 +773,453 @@ cat(sprintf("Truth: %.2f\nq'2: %.2f\nq3: %.2f\nq4: %.2f\n",
 ```
 
     ## Truth: 8.43
-    ## q'2: 8.39
-    ## q3: 8.59
-    ## q4: 8.37
+    ## q'2: 8.33
+    ## q3: 8.39
+    ## q4: 8.27
 
-## Notes
+## Apply to synthetic, univariate, non-stationary data depicting a climate trend
+
+``` r
+# ---------------------------------------------------------------------------
+# 1) Impose a climate trend
+# ---------------------------------------------------------------------------
+ds_new <- ds_subset
+ds_new$y <- ds_subset$y + ds_subset$x * 1.5e-5
+
+# ---------------------------------------------------------------------------
+# 2) Fit the marginal models exactly as in the repo-only fixed scenario test.
+# ---------------------------------------------------------------------------
+peak_picking_thr_model_fml <- stats::as.formula("y ~ te(doy, bs = c('cc'), k = 8) + x")
+
+df_pick_trend <- peak_picking(
+  ds_new,
+  peak_picking_thr_model_fml,
+  decorrelation_time_scale = 24,
+  idx = TRUE,
+  time_str = "x",
+  var_str = "y"
+)
+```
+
+    ## [1] "apply threshold model to data"
+    ## [1] "label storms"
+    ## [1] "combine and relabel storm peaks that are too close"
+    ## [1] "find peaks for combined storms"
+
+## Illustrate the performance of the storm thershold and peak picking
+
+``` r
+visualize_storm_picking(
+  dfin = df_pick_trend,
+  dfinall = ds_new,
+  xstr = "x",
+  ystr = "y",
+  sidx = 1,
+  eidx = 42000,
+  ylim = c(0, 12)
+)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+
+## Bootstrap and fit the models including the climate trend
+
+``` r
+nbstrp < 5
+```
+
+    ## [1] FALSE
+
+``` r
+res_bstrp <- run_bootstrap_storms_pots(
+  df = df_pick_trend$storms,
+  group_col = "storm_idx",
+  n_boot = nbstrp,
+  max_var = "y"
+)
+
+bstrp_storms_lst <- res_bstrp$boot_samples
+bstrp_pots_lst <- res_bstrp$boot_max
+
+knots <- list(doy = c(0, 366))
+thr_range <- list(hs = c(0.8, 0.9))
+
+fml_pp <- ~ te(doy, bs = c('cc'), k = 8) + x
+fml_gpd <- list(
+  exc ~ te(doy, k = 8, bs = c('cc')) + x,
+  ~ te(doy, k = 8, bs = c('cc')) + x
+)
+fml_ald <- y ~ te(doy, bs = c('cc'), k = 8) + x
+
+model_fml_thr <- NULL
+model_fml_gpd <- NULL
+model_fml_occ <- NULL
+model_fml_occ[['y']] <- fml_pp
+model_fml_thr[['y']] <- fml_ald
+model_fml_gpd[['y']] <- fml_gpd
+
+models_margs <- fit_margs_bstrp(
+  bstrp_pots_lst,
+  model_fml_thr,
+  model_fml_occ,
+  model_fml_gpd,
+  extr_thr = thr_range,
+  nr_of_years = 50,
+  thr_str = 'thr',
+  list_var = c('y'),
+  nbstrp = nbstrp,
+  nquad = 225,
+  knots = knots,
+  family_occ = 'pp'
+)
+```
+
+    ## [1] "Considered variables:" "y"                    
+    ## [1] "number of bootstraps is:" "20"                      
+    ## [1] "bootstrap nr:" "1"            
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "2"            
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "3"            
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "4"            
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "5"            
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "6"            
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "7"            
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "8"            
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "9"            
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "10"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "11"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "12"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "13"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "14"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "15"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "16"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "17"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "18"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "19"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"                       
+    ## [1] "bootstrap nr:" "20"           
+    ## [1] "fit threshold model"
+    ## [1] "fit threshold model for" "y"
+
+    ## [1] "subset to pots above threshold"
+    ## [1] "subset dataset for" "y"                 
+    ## [1] "fit GPD model"
+    ## [1] "fit gpd model for" "y"                
+    ## [1] "fit occ model"
+    ## [1] "fit occurrence model for" "y"
+
+## Example 1: predict for a known past time period.
+
+``` r
+# Here we provide a time range in x that corresponds to a historical period. The
+# x-values are the actual training-data values from the fitted period.
+past_x_min <- min(ds_new$x)
+past_x_max <- max(ds_new$x)
+
+# For a range prediction, generate a sequence of x values spanning the period.
+past_x_range <- sort(unique(ds_new$x))
+# Keep the non-scenario covariate fixed at a representative seasonal value.
+
+past_prediction_data <- ds_new
+
+past_ald_pred <- predict(models_margs[[1]]$thr$y,
+                        newdata = past_prediction_data,
+                        type = "response")
+past_occ_pred <- predict(models_margs[[1]]$occ$y,
+                        newdata = past_prediction_data,
+                        type = "response")
+past_gpd_pred <- predict(models_margs[[1]]$gpd$y,
+                        newdata = past_prediction_data,
+                        type = "response")
+```
+
+## Plot past with predicted past in same ts-plot
+
+``` r
+# Plot past with predicted past in same ts-plot ###
+plot(ds_new$x[1:50000], ds_new$y[1:50000],
+     xlim = c(0,max(ds_new$x[1:50000])), ylim = c(0,12), lwd=1,
+     lty=1, pch=20, col='black',
+     xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")
+par(new=TRUE)
+plot(
+  past_x_range[1:50000],
+  rgpd(n = length(past_gpd_pred$scale[1:50000]),
+       mu = past_ald_pred$location[1:50000],
+       sigma = past_gpd_pred$scale[1:50000],
+       xi = past_gpd_pred$shape[1:50000]),
+  xlim = c(0, max(ds_new$x[1:50000])),
+  ylim = c(0, 12),
+  lwd = 1,
+  lty = 1,
+  pch = 20,
+  cex = 0.1,
+  col = adjustcolor("red", alpha.f = 0.3),
+  xlab = "",
+  ylab = "",
+  main = ""
+)
+legend("topright",
+       legend = c("Observed Past", "Predicted Exceedances (GPD)"),
+       col = c("black", "red"),
+       pch = 20,
+       pt.cex = c(1, 0.8),
+       bty = "n")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
+
+## Example 2: predict for a future time range of 10 years.
+
+``` r
+# The future range is represented by a sequence of x-values equivalent to hourly
+# values across 10 years. We extend x and doy to a future range.
+
+future_x_min <- max(ds_new$x) + 1
+future_x_max <- future_x_min + (10 * 365 * 24) - 1
+future_x_range <- seq(future_x_min, future_x_max, by = 1)
+
+# create doy for future time:
+period <- 365*24
+future_doy <- ((future_x_range%%(period))+1)/24
+
+future_prediction_data <- data.frame(
+  doy = future_doy,
+  x = future_x_range
+)
+
+future_ald_pred <- predict(models_margs[[1]]$thr$y,
+                          newdata = future_prediction_data,
+                          type = "response")
+future_occ_pred <- predict(models_margs[[1]]$occ$y,
+                          newdata = future_prediction_data,
+                          type = "response")
+future_gpd_pred <- predict(models_margs[[1]]$gpd$y,
+                          newdata = future_prediction_data,
+                          type = "response")
+```
+
+## Plot past with predicted past and future exceedances in same ts-plot
+
+``` r
+plot(ds_new$x, ds_new$y,
+     xlim = c(0,max(future_x_range)), ylim = c(0,20), lwd=1,
+     lty=1, pch=20, col='black', cex=.5,
+     xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")
+par(new=TRUE)
+plot(
+  past_x_range,
+  rgpd(n = length(past_gpd_pred$scale),
+       mu = past_ald_pred$location,
+       sigma = past_gpd_pred$scale,
+       xi = past_gpd_pred$shape),
+  xlim = c(0, max(future_x_range)),
+  ylim = c(0, 20),
+  lwd = 1,
+  lty = 1,
+  pch = 20,
+  cex = 0.1,
+  col = adjustcolor("red", alpha.f = 0.3),
+  xlab = "",
+  ylab = "",
+  main = ""
+)
+par(new=TRUE)
+plot(
+  future_x_range,
+  rgpd(n = length(future_gpd_pred$scale),
+       mu = future_ald_pred$location,
+       sigma = future_gpd_pred$scale,
+       xi = future_gpd_pred$shape),
+  xlim = c(0, max(future_x_range)),
+  ylim = c(0, 20),
+  lwd = 1,
+  lty = 1,
+  pch = 20,
+  cex = 0.1,
+  col = adjustcolor("red", alpha.f = 0.3),
+  xlab = "",
+  ylab = "",
+  main = ""
+)
+legend("topleft",
+       legend = c("Observed Past", "Predicted Exceedances (GPD)"),
+       col = c("black", "red"),
+       pch = 20,
+       pt.cex = c(1, 0.8),
+       bty = "n")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-38-1.png)<!-- --> \## Notes
 
 - This project was developed as part of the FORESEE project funded by
   the Norwegian Research Council.
