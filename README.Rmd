@@ -729,6 +729,7 @@ df_pick_trend <- peak_picking(
 ```
 
 ## Illustrate the performance of the storm thershold and peak picking
+
 ```{r fig.width=9, fig.height=4}
 visualize_storm_picking(
   dfin = df_pick_trend,
@@ -742,7 +743,8 @@ visualize_storm_picking(
 ```
 
 ## Bootstrap and fit the models including the climate trend
-```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
 nbstrp < 5
 
 res_bstrp <- run_bootstrap_storms_pots(
@@ -791,14 +793,8 @@ models_margs <- fit_margs_bstrp(
 ## Example 1: predict for a known past time period.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-# Here we provide a time range in x that corresponds to a historical period. The
-# x-values are the actual training-data values from the fitted period.
-past_x_min <- min(ds_new$x)
-past_x_max <- max(ds_new$x)
-
-# For a range prediction, generate a sequence of x values spanning the period.
-past_x_range <- sort(unique(ds_new$x))
-# Keep the non-scenario covariate fixed at a representative seasonal value.
+# Here we provide a time range in x that corresponds to a historical period
+# and predict from one bootstrap member for illustration purposes.
 
 past_prediction_data <- ds_new
 
@@ -823,7 +819,7 @@ plot(ds_new$x[1:50000], ds_new$y[1:50000],
      xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")
 par(new=TRUE)
 plot(
-  past_x_range[1:50000],
+  ds_new$x[1:50000],
   rgpd(n = length(past_gpd_pred$scale[1:50000]),
        mu = past_ald_pred$location[1:50000],
        sigma = past_gpd_pred$scale[1:50000],
@@ -835,11 +831,11 @@ plot(
   pch = 20,
   cex = 0.1,
   col = adjustcolor("red", alpha.f = 0.3),
-  xlab = "",
-  ylab = "",
+  xlab = "x",
+  ylab = "y",
   main = ""
 )
-legend("topright",
+legend("topleft",
        legend = c("Observed Past", "Predicted Exceedances (GPD)"),
        col = c("black", "red"),
        pch = 20,
@@ -849,7 +845,7 @@ legend("topright",
 
 ## Example 2: predict for a future time range of 10 years.
 
-```{r fig.width=9, fig.height=4}
+```{r echo=TRUE, message=FALSE, warning=FALSE}
 # The future range is represented by a sequence of x-values equivalent to hourly
 # values across 10 years. We extend x and doy to a future range.
 
@@ -878,6 +874,7 @@ future_gpd_pred <- predict(models_margs[[1]]$gpd$y,
 ```
 
 ## Plot past with predicted past and future exceedances in same ts-plot
+
 ```{r fig.width=9, fig.height=4}
 plot(ds_new$x, ds_new$y,
      xlim = c(0,max(future_x_range)), ylim = c(0,20), lwd=1,
@@ -885,7 +882,7 @@ plot(ds_new$x, ds_new$y,
      xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")
 par(new=TRUE)
 plot(
-  past_x_range,
+  ds_new$x,
   rgpd(n = length(past_gpd_pred$scale),
        mu = past_ald_pred$location,
        sigma = past_gpd_pred$scale,
@@ -914,18 +911,100 @@ plot(
   lty = 1,
   pch = 20,
   cex = 0.1,
-  col = adjustcolor("red", alpha.f = 0.3),
-  xlab = "",
-  ylab = "",
+  col = adjustcolor("orange", alpha.f = 0.3),
+  xlab = "x",
+  ylab = "y",
   main = ""
 )
 legend("topleft",
-       legend = c("Observed Past", "Predicted Exceedances (GPD)"),
-       col = c("black", "red"),
+       legend = c("Observed Past", "Predicted Exceedances Past (GPD)", "Predicted Exceedances Future (GPD)"),
+       col = c("black", "red", "orange"),
        pch = 20,
        pt.cex = c(1, 0.8),
        bty = "n")
 ```
+
+## Now we want to compare the aggregated past world with some counterfactual future scenario
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, results="hide", fig.show="hide"}
+RP <- 100
+nmc <- 100
+
+print("Predicting past range via repo-native API:")
+past_preds <- predict_margs(
+  models_margs,
+  nr_of_years = 50,
+  RP = RP,
+  nmc = nmc,
+  var_lst = c('y'),
+  nbstrp = 5,
+  covarstr_lst = c('doy'),
+  grid_interval = list(doy = 1),
+  family_occ = 'pp',
+  scenario = past_prediction_data
+)
+
+print("Predicting future 10-year range via repo-native API:")
+future_preds <- predict_margs(
+  models_margs,
+  nr_of_years = 50,
+  RP = RP,
+  nmc = nmc,
+  var_lst = c('y'),
+  nbstrp = 5,
+  covarstr_lst = c('doy'),
+  grid_interval = list(doy = 1),
+  family_occ = 'pp',
+  scenario = future_prediction_data
+)
+
+print("Predicting future 1-year range via repo-native API:")
+period <- 365*24
+future_range_1yr <- seq(future_x_max, (future_x_max + (365 * 24) - 1), by = 1)
+future_doy_1yr <- ((future_range_1yr%%(period))+1)/24
+
+future_prediction_data_1yr <- data.frame(
+  doy = future_doy_1yr,
+  x = future_range_1yr
+)
+
+future_preds_1yr <- predict_margs(
+  models_margs,
+  nr_of_years = 50,
+  RP = RP,
+  nmc = nmc,
+  var_lst = c('y'),
+  nbstrp = 5,
+  covarstr_lst = c('doy'),
+  grid_interval = list(doy = 1),
+  family_occ = 'pp',
+  scenario = future_prediction_data_1yr
+)
+
+dy_past <- diagnose_margs_preds_density(past_preds, 'y', bw = .1)
+dy_future <- diagnose_margs_preds_density(future_preds, 'y', bw = .1)
+dy_future_1yr <- diagnose_margs_preds_density(future_preds_1yr, 'y', bw = .1)
+```
+
+## Diplay the different counterfactual scenarios
+
+```{r fig.width=9, fig.height=4}
+plot(density(unlist(dy_past$maxvals),bw=.1),xlim=c(5,20),ylim=c(0,1.6),col='black',lwd=1,lty=1,
+     xlab = "", ylab = "", xaxt = "n", yaxt = "n", main = "")
+par(new=TRUE)
+plot(density(unlist(dy_future$maxvals),bw=.1),xlim=c(5,20),ylim=c(0,1.6),col='orange',lwd=1,lty=1,
+     xlab = "", main = "")
+par(new=TRUE)
+plot(density(unlist(dy_future_1yr$maxvals),bw=.1),xlim=c(5,20),ylim=c(0,1.6),col='orange',lwd=1,lty=2,
+     xlab = "y", main = "100yr maxima")
+legend("topright",
+       legend = c("past climate", "future climate range 10yrs", "end of future range climate 1yr"),
+       col = c("black", "orange", "orange"),
+       lty = c(1, 1, 2), # line type
+       lwd = 1,        # line width
+       bty = "n")      # box type ("n" = no box)
+```
+
 ## Notes
 
 -   This project was developed as part of the FORESEE project funded by the Norwegian Research Council.
